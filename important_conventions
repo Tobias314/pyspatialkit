@@ -1,0 +1,7 @@
+This states assumptions and conventions of this projects
+
+bounds are in the form bounds (minx, miny, maxx, maxy)
+
+Image arrays always have 3 dimensions. E.g. (height, width, 1) for images with only one channel
+
+ x,y or lon,lat order is always used for coordinates never y,x or lat,lon

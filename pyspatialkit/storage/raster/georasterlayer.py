@@ -1,21 +1,27 @@
 from abc import abstractmethod
+from pathlib import Path
 
 import numpy as np
 
-from ..crs.geocrs import NoneCRS
+from pyspatialkit import DEFAULT_CRS
+from ..geolayer import GeoLayer
+from ...crs.geocrs import GeoCRS, NoneCRS
 
 
 class GeoRasterLayer(GeoLayer):
-    def initialize(self, crs=NoneCRS):
-        raise NotImplementedError
+    def initialize(self, crs: GeoCRS = DEFAULT_CRS()):
+        self._crs = crs
 
-    @abstractmethod
     def persist_data(dir_path: Path):
         raise NotImplementedError
 
     @abstractmethod
     def load_data(dir_path: Path):
         raise NotImplementedError
+
+    @property
+    def crs(self):
+        return self._crs
 
     """"
     def get_raster_for_rect_and_band(self, georect: GeoRect, x_resolution: int, y_resolution: int, band=1,

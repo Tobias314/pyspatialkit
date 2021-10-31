@@ -23,7 +23,7 @@ class GeoLayer(ABC):
     def persist(self, directory_path: Optional[Path] = None):
         if directory_path is None:
             directory_path = self.directory_path
-        self.load_data(directory_path)
+        self.persist_data(directory_path)
 
     @abstractmethod
     def initialize(self, *args, **kwargs):
