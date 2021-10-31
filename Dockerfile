@@ -83,4 +83,8 @@ ENV NVIDIA_DRIVER_CAPABILITIES graphics,utility,compute
 # Conda
 RUN conda install -n env -c conda-forge pyproj -y
 RUN conda install -n env -c conda-forge numpy -y
+RUN conda install -n env -c conda-forge tiledb-py -y
+RUN conda install -n env -c conda-forge pylint -y
+RUN conda install -n env -c conda-forge ipykernel -y
+RUN conda install -n env -c conda-forge matplotlib -y
 # RUN conda install -n env pytorch torchvision torchaudio cudatoolkit=10.2 -c pytorch
