@@ -1,3 +1,4 @@
+from typing import Optional
 from pathlib import Path
 from abc import ABC, abstractmethod
 
@@ -30,16 +31,16 @@ class GeoLayer(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def persist_data(dir_path: Path):
+    def persist_data(self, dir_path: Path):
         raise NotImplementedError
 
     @abstractmethod
-    def load_data(dir_path: Path):
+    def load_data(self, ir_path: Path):
         raise NotImplementedError
 
     @property
     def name(self):
-        return self.folder_path.name
+        return self.directory_path.name
 
     @property
     def crs(self):
