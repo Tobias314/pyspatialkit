@@ -81,11 +81,15 @@ ENV NVIDIA_DRIVER_CAPABILITIES graphics,utility,compute
 
 ################################## Dependencies ##################################
 # Conda
-RUN conda install -n env -c conda-forge geopandas -y
-RUN conda install -n env -c conda-forge tiledb-py -y
-RUN conda install -n env -c conda-forge pylint ipykernel -y
-RUN conda install -n env -c conda-forge numpy matplotlib -y
-RUN conda install -n env -c conda-forge shapely -y
-RUN conda install -n env -c conda-forge pyproj -y
-RUN conda install -n env -c conda-forge scikit-image -y
+RUN conda config --add channels conda-forge
+RUN conda config --set channel_priority strict
+RUN conda install -n env geopandas -y
+RUN conda install -n env tiledb-py -y
+RUN conda install -n env rasterio -y
+RUN conda install -n env pylint ipykernel -y
+RUN conda install -n env numpy matplotlib -y
+RUN conda install -n env shapely -y
+RUN conda install -n env pyproj -y
+RUN conda install -n env scikit-image -y
+RUN conda install -n env -c conda-forge pygeos -y
 # RUN conda install -n env pytorch torchvision torchaudio cudatoolkit=10.2 -c pytorch
