@@ -5,8 +5,7 @@ import numpy as np
 import rasterio as rio
 from affine import Affine
 
-from crs.geocrs import GeoCRS
-
+from ..crs.geocrs import GeoCRS
 from ..spacedescriptors.georect import GeoRect
 
 def rasterio_dataset_writer_from_rasterio_dataset(rasterio_dataset: rio.io.DatasetReader, path: Union[str, Path],
