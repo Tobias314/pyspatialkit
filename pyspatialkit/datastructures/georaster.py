@@ -4,11 +4,13 @@ from pathlib import Path
 
 import numpy as np
 from geopandas import GeoSeries, GeoDataFrame
+from pyproj import crs
 from rasterio.features import rasterize
 from matplotlib import pyplot as plt
 
 
-from ..crs.geocrs import GeoCRS
+from ..crs.geocrs import GeoCrs
+from ..crs.geocrstransformer import GeoCrsTransformer
 from ..spacedescriptors.georect import GeoRect
 from ..utils.geopandas import projective_transform
 from ..utils.rasterio import save_np_array_as_geotiff
@@ -28,8 +30,18 @@ class GeoRaster:
         self._transform = georect.transform @ np.array([[1/self.data.shape[0], 0, 0],  [0, 1/self.data.shape[1], 0], [0, 0, 1]])
 
     @property
-    def crs(self) -> GeoCRS:
+    def crs(self) -> GeoCrs:
         return self.georect.crs
+
+    def to_crs(self, new_crs: GeoCrs, crs_transformer: Optional[GeoCrsTransformer] = None, inplace=True) -> 'GeoRaster':
+        if inplace:
+            self.georect.to_crs(new_crs=new_crs, crs_transformer=crs_transformer, inplace=True)
+            self._transform = self.georect.transform @ np.array([[1/self.data.shape[0], 0, 0],  [0, 1/self.data.shape[1], 0], [0, 0, 1]])
+            return self
+        else:
+            new_georect = self.georect.to_crs(new_crs=new_crs, crs_transformer=crs_transformer, inplace=False)
+            return GeoRaster(new_georect, self.data.copy())
+        
 
     # TODO: might not be pixelaccurate
     # TODO: do profiling to optimize performence because this function might be critical for the overall performance
