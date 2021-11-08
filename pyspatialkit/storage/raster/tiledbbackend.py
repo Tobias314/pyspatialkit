@@ -16,6 +16,7 @@ class TileDbBackend:
         self.tile_size = np.array(tile_size, dtype=int)
         directory_path = Path(directory_path)
         assert(directory_path.is_dir)
+        directory_path.mkdir(parents=True, exist_ok=True)
         self.directory_path = directory_path
         self.build_pyramid = build_pyramid
         if self.build_pyramid :
@@ -29,17 +30,18 @@ class TileDbBackend:
         self.band_attribute_dtype = np.dtype(','.join([np.dtype(self.dtype).str] * self.num_bands))
         band_attribute = tiledb.Attr(dtype=self.band_attribute_dtype, fill=fill_value)
         for i, layer in enumerate(self.layers):
-            dim = np.ceil(self.dims / 2**i).astype(int)
-            tile_size = np.stack([np.ceil(dim / 2), self.tile_size], axis=1).min(axis=1)
-            max32 = np.iinfo(np.int32).max
-            dtypes = (np.int32 if self.dims[0] > max32 else np.int64,  np.int32 if self.dims[1] > max32 else np.int64)
-            dimx = tiledb.Dim(name="dimx" + str(i), domain=(0, dim[0]), tile=tile_size[0], dtype=dtypes[0])
-            dimy = tiledb.Dim(name="dimy" + str(i), domain=(0, dim[1]), tile=tile_size[1], dtype=dtypes[1])
-            dom = tiledb.Domain(dimx, dimy)
-            schema = tiledb.ArraySchema(domain=dom, sparse=False, attrs=[band_attribute,])
-            schema.check()
             path = str(self.directory_path / ("layer_" + str(i)))
-            tiledb.Array.create(path, schema)
+            if not Path(path).exists:
+                dim = np.ceil(self.dims / 2**i).astype(int)
+                tile_size = np.stack([np.ceil(dim / 2), self.tile_size], axis=1).min(axis=1)
+                max32 = np.iinfo(np.int32).max
+                dtypes = (np.int32 if self.dims[0] > max32 else np.int64,  np.int32 if self.dims[1] > max32 else np.int64)
+                dimx = tiledb.Dim(name="dimx" + str(i), domain=(0, dim[0]), tile=tile_size[0], dtype=dtypes[0])
+                dimy = tiledb.Dim(name="dimy" + str(i), domain=(0, dim[1]), tile=tile_size[1], dtype=dtypes[1])
+                dom = tiledb.Domain(dimx, dimy)
+                schema = tiledb.ArraySchema(domain=dom, sparse=False, attrs=[band_attribute,])
+                schema.check()
+                tiledb.Array.create(path, schema)
             self.layers[i] = [path, tiledb.DenseArray(path, mode='r')]
         if self.build_pyramid:
             self.dirty_bounds = []
@@ -53,6 +55,7 @@ class TileDbBackend:
     def write_data(self, bounds: Tuple[float, float, float, float], data: np.ndarray) -> None:
         assert data.shape[-1] == self.num_bands
         assert data.dtype == self.dtype
+        data = data.squeeze()
         bounds = self._bounds_to_indices(bounds)
         path = self.layers[0][0]
         with tiledb.DenseArray(path, mode='w') as db:

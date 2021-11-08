@@ -12,8 +12,8 @@ class GeoLayer(ABC):
         if self.directory_path.is_dir():
             self.load()
         else:
-            self.initialize(*args, **kwargs)
             self.directory_path.mkdir(parents=True)
+            self.initialize(*args, **kwargs)
             self.persist()
 
     def load(self, directory_path: Optional[Path] = None):

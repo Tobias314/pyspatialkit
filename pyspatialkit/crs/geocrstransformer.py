@@ -2,7 +2,7 @@ from pyproj import Transformer, crs
 
 from typing import Any, Tuple
 
-from crs.geocrs import GeoCrs, NoneCRS
+from .geocrs import GeoCrs, NoneCRS
 
 class GeoCrsTransformer:
 

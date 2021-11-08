@@ -18,7 +18,6 @@ BACKEND_DIRECTORY_NAME = "backend"
 
 class GeoRasterLayer(GeoLayer):
     
-    @abstractmethod
     def initialize(self, num_bands:int, dtype: np.dtype,
                     crs: GeoCrs = DEFAULT_CRS, bounds: Optional[Tuple[float, float, float, float]] = None, fill_value=0,
                     pixel_size: Tuple[float, float] = (1,1,), build_pyramid:bool=True):
@@ -35,7 +34,6 @@ class GeoRasterLayer(GeoLayer):
                                      directory_path=self.directory_path / BACKEND_DIRECTORY_NAME, fill_value=self.fill_value, 
                                      pixel_size=self.pixel_size, build_pyramid=self.build_pyramid)
 
-    @abstractmethod
     def persist_data(self, dir_path: Path):
         config = {}
         config['num_bands'] = self.num_bands
@@ -48,8 +46,6 @@ class GeoRasterLayer(GeoLayer):
         with open(dir_path / 'config.json', 'w') as json_file:
             json.dump(config, json_file)
 
-
-    @abstractmethod
     def load_data(self, dir_path: Path):
         with open(dir_path / 'config.json') as json_file:
             config = json_file.read()
@@ -65,11 +61,10 @@ class GeoRasterLayer(GeoLayer):
                                         directory_path=self.directory_path / BACKEND_DIRECTORY_NAME, fill_value=self.fill_value, 
                                         pixel_size=self.pixel_size, build_pyramid=self.build_pyramid)
 
-    @abstractmethod
     def get_raster_for_rect(self, georect: GeoRect, resolution: Optional[Tuple[int,int]]=None, band=None, no_data_value=0) -> GeoRaster:
         if georect.crs != self.crs:
             georect.to_crs(self.crs)
-        bounds = np.array(georect.get_bounds())
+        bounds = np.array(georect.get_bounds()).astype(int)
         if resolution is None:
             resolution = (bounds[2:] - bounds[:2]) / self.backend.pixel_size
         raster_data = self.backend.get_data(bounds, resolution)
@@ -91,12 +86,11 @@ class GeoRasterLayer(GeoLayer):
             result_raster.merge_projected_other(bounds_raster)
             return result_raster
 
-    @abstractmethod
     def writer_raster_data(self, georaster: GeoRaster):
         if georaster.crs != self.crs:
             georaster.to_crs(self.crs)
-        bounds = georaster.georect.get_bounds()
-        self.backend.write_data(bounds, georaster.data.squeeze())
+        bounds = np.array(georaster.georect.get_bounds()).astype(int)
+        self.backend.write_data(bounds, georaster.data)
 
     @property
     def name(self):
