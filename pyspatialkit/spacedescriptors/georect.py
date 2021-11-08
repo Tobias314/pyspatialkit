@@ -12,19 +12,19 @@ from ..crs.geocrs import GeoCRS, NoneCRS
 
 class GeoRect:
 
-    def __init__(self, top_left: Tuple[float, float],  bottom_right: Tuple[float, float],
-                 top_right: Optional[Tuple[float, float]] = None, bottom_left: Optional[Tuple[float, float]] = None,
+    def __init__(self, bottom_left: Tuple[float, float],  top_right: Tuple[float, float],
+                 top_left: Optional[Tuple[float, float]] = None, bottom_right: Optional[Tuple[float, float]] = None,
                  crs: GeoCRS = NoneCRS):
         self.crs = crs
-        self.top_left = top_left
-        self.bottom_right = bottom_right
-        if top_right is None or bottom_left is None:
-            self.top_right = (bottom_right[0], top_left[1])
-            self.bottom_left = (top_left[0], bottom_right[1])
+        self.bottom_left = bottom_left
+        self.top_right = top_right
+        if top_left is None or bottom_right is None:
+            self.top_left = (bottom_left[0], top_right[1])
+            self.bottom_right = (top_right[0], bottom_left[1])
         else:
-            self.top_right = top_right
-            self.bottom_left = bottom_left
-        self._transform = projective_transform_from_pts(source_pts=np.array([[0,1],[1,1],[1,0],[0,0]]), destenation_pts=np.array(self.points))
+            self.top_left = top_left
+            self.bottom_right = bottom_right
+        self._transform = projective_transform_from_pts(source_pts=np.array([[0,1],[1,1],[1,0],[0,0]]), destination_pts=np.array(self.points))
 
     def to_shapely(self) -> Polygon:
         return Polygon([self.top_left, self.top_right, self.bottom_right, self.bottom_left])
