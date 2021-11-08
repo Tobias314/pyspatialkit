@@ -2,11 +2,11 @@ from typing import Union, Optional
 
 from pyproj import CRS
 
-class GeoCRS:
-    def __init__(self, crs: Optional[Union[CRS, 'GeoCRS']] = None) -> None:
+class GeoCrs:
+    def __init__(self, crs: Optional[Union[CRS, 'GeoCrs']] = None) -> None:
         if isinstance(crs, CRS):
             self.proj_crs = crs
-        elif isinstance(crs, GeoCRS):
+        elif isinstance(crs, GeoCrs):
             self.proj_crs = crs.proj_crs
         else:
             self.proj_crs = None
@@ -18,7 +18,7 @@ class GeoCRS:
             proj_crs = CRS(dict['proj_crs'])
         except:
             pass
-        return GeoCRS(proj_crs)
+        return GeoCrs(proj_crs)
 
     def to_dict(self):
         res = {}
@@ -26,11 +26,11 @@ class GeoCRS:
 
     def __eq__(self, other):
         """Overrides the default implementation"""
-        if isinstance(other, GeoCRS):
+        if isinstance(other, GeoCrs):
             return self.proj_crs == other.proj_crs
         return False
 
-class NoneCRS(GeoCRS):
+class NoneCRS(GeoCrs):
     def __init__(self) -> None:
         super().__init__(crs=None)
 

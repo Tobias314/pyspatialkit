@@ -5,7 +5,7 @@ import numpy as np
 import rasterio as rio
 from affine import Affine
 
-from ..crs.geocrs import GeoCRS
+from ..crs.geocrs import GeoCrs
 from ..spacedescriptors.georect import GeoRect
 
 def rasterio_dataset_writer_from_rasterio_dataset(rasterio_dataset: rio.io.DatasetReader, path: Union[str, Path],
@@ -28,7 +28,7 @@ def save_raster(raster: rio.io.DatasetReader, path: Union[str, Path], driver: st
     for band in bands:
         new_dataset.write(raster.read(band), band)
 
-def save_np_array_as_geotiff(img: np.ndarray, transform: np.ndarray, crs: GeoCRS, path: Union[str, Path]):
+def save_np_array_as_geotiff(img: np.ndarray, transform: np.ndarray, crs: GeoCrs, path: Union[str, Path]):
     bands = img.shape[2] if len(img.shape)>2 else 1
     img_dim = [img.shape[0],img.shape[1]]
     if not (transform[2,:2] == np.array([0,0])).all():

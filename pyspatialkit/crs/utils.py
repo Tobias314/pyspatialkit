@@ -1,9 +1,9 @@
 from pyproj import CRS, Transformer
 
-from .geocrs import GeoCRS
+from .geocrs import GeoCrs
 
 
-def crs_bounds(crs: GeoCRS):
+def crs_bounds(crs: GeoCrs):
     bounds = crs.proj_crs.area_of_use.bounds
     minimum = bounds[:2]
     maximum = bounds[2:]
