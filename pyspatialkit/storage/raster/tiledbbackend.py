@@ -31,7 +31,7 @@ class TileDbBackend:
         band_attribute = tiledb.Attr(dtype=self.band_attribute_dtype, fill=fill_value)
         for i, layer in enumerate(self.layers):
             path = str(self.directory_path / ("layer_" + str(i)))
-            if not Path(path).exists:
+            if not Path(path).exists():
                 dim = np.ceil(self.dims / 2**i).astype(int)
                 tile_size = np.stack([np.ceil(dim / 2), self.tile_size], axis=1).min(axis=1)
                 max32 = np.iinfo(np.int32).max
