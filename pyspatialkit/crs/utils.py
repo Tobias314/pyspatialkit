@@ -4,6 +4,8 @@ from .geocrs import GeoCrs
 
 
 def crs_bounds(crs: GeoCrs):
+    if crs.proj_crs.area_of_use is None:
+        raise AttributeError("Cannot compute bounds of given CRS")
     bounds = crs.proj_crs.area_of_use.bounds
     minimum = bounds[:2]
     maximum = bounds[2:]

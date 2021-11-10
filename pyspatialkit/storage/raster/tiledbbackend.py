@@ -59,7 +59,8 @@ class TileDbBackend:
         bounds = self._bounds_to_indices(bounds)
         path = self.layers[0][0]
         with tiledb.DenseArray(path, mode='w') as db:
-            d = data.view(self.band_attribute_dtype)
+            d = np.ascontiguousarray(data)
+            d = d.view(self.band_attribute_dtype)
             db[bounds[0]:bounds[2], bounds[1]:bounds[3]] = d
             self.layers[0][1] = tiledb.DenseArray(path, mode='r')
             if self.build_pyramid:
@@ -76,7 +77,7 @@ class TileDbBackend:
                     bounds = upper_level_bounds * 2
                     img = self.layers[layer-1][1][bounds[0]:bounds[2], bounds[1]:bounds[3]]
                     img = img.view((self.dtype, self.num_bands))
-                    img_low_res = (img[::2,::2] + img[1::2,::2] + img[::2,1::2] + img[1::2,1::2]) / 4
+                    img_low_res = ((img[::2,::2] + img[1::2,::2] + img[::2,1::2] + img[1::2,1::2]) / 4).astype(self.dtype)
                     db[upper_level_bounds[0]:upper_level_bounds[2], upper_level_bounds[1]:upper_level_bounds[3]] = img_low_res.view(self.band_attribute_dtype)
                     self.layers[layer][1] = tiledb.DenseArray(write_db_path, mode='r')
                     new_dirty_bounds.append(upper_level_bounds)
