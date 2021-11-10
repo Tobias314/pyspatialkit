@@ -1,7 +1,7 @@
 import unittest
 import sys
 sys.path.append('../../../../')
-from ....utils import get_testdata_path, close_all_files_delete_dir
+from ....utils import get_tmp_path, close_all_files_delete_dir
 
 import numpy as np
 import logging
@@ -14,7 +14,7 @@ from pyspatialkit.crs.geocrs import NoneCRS
 class TestGeoRasterLayer(unittest.TestCase):
 
     def setUp(self):
-        self.dir_path = get_testdata_path() / 'rasterlayer'
+        self.dir_path = get_tmp_path() / 'rasterlayer'
         self.raster_layer = GeoRasterLayer(directory_path=self.dir_path, num_bands=1, dtype=float, crs=NoneCRS(), bounds=[0,0,10000,10000])
 
     def tearDown(self):

@@ -1,6 +1,8 @@
 from typing import Union, Optional
+from numpy.lib.arraysetops import isin
 
 from pyproj import CRS
+import rasterio as rio
 
 class GeoCrs:
     def __init__(self, crs: Optional[Union[CRS, 'GeoCrs']] = None) -> None:
@@ -8,6 +10,8 @@ class GeoCrs:
             self._proj_crs = crs
         elif isinstance(crs, GeoCrs):
             self._proj_crs = crs.proj_crs
+        elif isinstance(crs, str) or isinstance(crs, rio.crs.CRS):
+            self._proj_crs = CRS(crs)
         else:
             self._proj_crs = None
 
@@ -23,6 +27,7 @@ class GeoCrs:
     def to_dict(self):
         res = {}
         res['proj_crs'] = str(self._proj_crs)
+        return res
 
     def __eq__(self, other):
         """Overrides the default implementation"""

@@ -1,8 +1,17 @@
 from pathlib import Path
 import os
 import json
+from typing import Optional, Tuple
+
+import numpy as np
+
+from .geolayer import GeoLayer
 
 from ..utils.logging import logger
+from ..utils.fileio import force_delete_directory
+from .raster.georasterlayer import GeoRasterLayer
+from ..crs.geocrs import GeoCrs
+from .. import DEFAULT_CRS
 
 class GeoStorage:
 
@@ -43,18 +52,20 @@ class GeoStorage:
             return False
         dir_path = self.layers[layer_name].folder_path
         del self.layers[layer_name]
-        force_delete_dir(dir_path)
+        force_delete_directory(dir_path)
         return True
 
-    def _add_layer(self, layer_name: str, layer_type: type, *args, **kwargs):
+    def _add_layer(self, layer_name: str, layer_type: type, *args, **kwargs) -> GeoLayer:
         if layer_name in self.layers:
             print("A layer with name {} already exists, returning existing layer.".format(layer_name))
             return self.get_layer(layer_name)
-        layer = layer_type(os.path.join(self.dir_path, layer_name), *args, **kwargs)
+        layer = layer_type(directory_path = os.path.join(self.directory_path, layer_name), *args, **kwargs)
         self.layers[layer_name] = layer
         self.persist_configuration()
         return layer
 
-    def add_raster_layer(self, raster_layer_name: str) -> GeoRasterLayer:
-        #TODO
-        raise NotImplementedError
+    def add_raster_layer(self, layer_name: str, num_bands:int, dtype: np.dtype, crs: GeoCrs = DEFAULT_CRS,
+                         bounds: Optional[Tuple[float, float, float, float]] = None, fill_value = 0,
+                         pixel_size: Tuple[float, float] = (1,1,), build_pyramid:bool=True) -> GeoRasterLayer:
+        return self._add_layer(layer_name=layer_name, layer_type=GeoRasterLayer, num_bands=num_bands, dtype=dtype, crs=crs,
+                                bounds=bounds, fill_value=fill_value,pixel_size=pixel_size, build_pyramid=build_pyramid)

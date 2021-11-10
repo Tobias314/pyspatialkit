@@ -17,4 +17,8 @@ def close_all_files_delete_dir(dir_path):
 
 def get_testdata_path():
     path = Path(os.path.realpath(__file__))
-    return path.parent / "testdata/"
+    return path.parent.parent / "testdata/"
+
+def get_tmp_path():
+    path = Path(os.path.realpath(__file__))
+    return path.parent / "tmp/"

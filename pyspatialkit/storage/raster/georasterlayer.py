@@ -12,7 +12,7 @@ from ...crs.geocrs import GeoCrs, NoneCRS
 from ...crs.utils import crs_bounds
 from .tiledbbackend import TileDbBackend
 from ...spacedescriptors.georect import GeoRect
-from ...datastructures.georaster import GeoRaster
+from ...dataobjects.georaster import GeoRaster
 
 BACKEND_DIRECTORY_NAME = "backend"
 
@@ -66,13 +66,15 @@ class GeoRasterLayer(GeoLayer):
             georect.to_crs(self.crs)
         bounds = np.array(georect.get_bounds()).astype(int)
         if resolution is None:
-            resolution = (bounds[2:] - bounds[:2]) / self.backend.pixel_size
+            resolution = ((bounds[2:] - bounds[:2]) / self.backend.pixel_size).astype(int)
+        print(bounds)
         raster_data = self.backend.get_data(bounds, resolution)
         if len(raster_data.shape)==2:
             raster_data = raster_data[:,:,np.newaxis]
         if band is not None:
             raster_data = raster_data[:,:,band]
         if georect.is_axis_aligned:
+            print("aligned")
             return GeoRaster(georect, raster_data)
         else:
             bounds_rect = GeoRect(bottom_left=bounds[:2], top_right=bounds[2:], crs=self.crs)
@@ -91,6 +93,8 @@ class GeoRasterLayer(GeoLayer):
             georaster.to_crs(self.crs)
         bounds = np.array(georaster.georect.get_bounds()).astype(int)
         self.backend.write_data(bounds, georaster.data)
+        if self.build_pyramid:
+            self.backend.update_pyramid() #TODO: make this more efficient for bulk writes by doing bulk updates
 
     @property
     def name(self):

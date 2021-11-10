@@ -92,4 +92,6 @@ RUN conda install -n env shapely -y
 RUN conda install -n env pyproj -y
 RUN conda install -n env scikit-image -y
 RUN conda install -n env -c conda-forge pygeos -y
+RUN conda install -n env -c conda-forge fastapi uvicorn -y
+RUN conda install -n env -c conda-forge genshi -y
 # RUN conda install -n env pytorch torchvision torchaudio cudatoolkit=10.2 -c pytorch
