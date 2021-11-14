@@ -49,6 +49,7 @@ class LowerCaseMiddleware:
         return response
 
 def start_server(geostorage: GeoStorage) -> None:
+    print("STARTING SERVER")
     app = FastAPI()
     app.include_router(static_router)
     app.include_router(geostorage_router)
@@ -70,3 +71,20 @@ def start_server(geostorage: GeoStorage) -> None:
         i = 0
         while True:
             i+=1
+
+print("TEST")
+app = FastAPI()
+app.geostorage = GeoStorage("./tests/tmp/geostorage/")
+app.include_router(static_router)
+app.include_router(geostorage_router)
+app.include_router(raster_router)
+app.mount("/static", StaticFiles(directory=frontend_path), name="static")
+my_middleware = LowerCaseMiddleware()
+app.middleware("http")(my_middleware)
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)

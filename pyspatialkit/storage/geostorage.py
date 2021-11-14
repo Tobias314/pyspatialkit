@@ -66,6 +66,6 @@ class GeoStorage:
 
     def add_raster_layer(self, layer_name: str, num_bands:int, dtype: np.dtype, crs: GeoCrs = DEFAULT_CRS,
                          bounds: Optional[Tuple[float, float, float, float]] = None, fill_value = 0,
-                         pixel_size: Tuple[float, float] = (1,1,), build_pyramid:bool=True) -> GeoRasterLayer:
+                         pixel_size_xy: Tuple[float, float] = (1,1,), build_pyramid:bool=True) -> GeoRasterLayer:
         return self._add_layer(layer_name=layer_name, layer_type=GeoRasterLayer, num_bands=num_bands, dtype=dtype, crs=crs,
-                                bounds=bounds, fill_value=fill_value,pixel_size=pixel_size, build_pyramid=build_pyramid)
+                                bounds=bounds, fill_value=fill_value,pixel_size_xy=pixel_size_xy, build_pyramid=build_pyramid)

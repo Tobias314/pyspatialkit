@@ -6,7 +6,7 @@ from ....utils import get_tmp_path, close_all_files_delete_dir
 import numpy as np
 import logging
 
-from pyspatialkit.datastructures.georaster import GeoRaster
+from pyspatialkit.dataobjects.georaster import GeoRaster
 from pyspatialkit.spacedescriptors.georect import GeoRect
 from pyspatialkit.storage.raster.georasterlayer import GeoRasterLayer
 from pyspatialkit.crs.geocrs import NoneCRS

@@ -2,6 +2,8 @@ This states assumptions and conventions of this projects
 
 bounds are in the form bounds (minx, miny, maxx, maxy)
 
+images are indexed with [row, col, num_channels] with 0,0 at top left corner (matrix notation)
+
 Image arrays always have 3 dimensions. E.g. (height, width, 1) for images with only one channel
 
  x,y or lon,lat order is always used for coordinates never y,x or lat,lon
