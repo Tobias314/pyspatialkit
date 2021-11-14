@@ -28,8 +28,11 @@ class GeoRect:
         self._create_cache()
 
     @classmethod
-    def from_points(points: Union[List[Tuple[float,float]], np.ndarray], crs: GeoCrs):
+    def from_points(points: Union[List[Tuple[float,float]], np.ndarray], crs: GeoCrs) -> 'GeoRect':
         return GeoRect(points[0], points[2], points[1], points[3], crs=crs)
+
+    def from_bounds(bounds: Tuple[float,float,float,float], crs: GeoCrs) -> 'GeoRect':
+        return GeoRect(bounds[:2], bounds[2:], crs=crs)
 
     def _create_cache(self, points: Optional[Union[List[Tuple[float,float]], np.ndarray]] = None):
         if points is not None:
@@ -42,7 +45,7 @@ class GeoRect:
             self.is_axis_aligned = True
         else:
             self.is_axis_aligned = False
-        self._transform = projective_transform_from_pts(source_pts=np.array([[0,1],[1,1],[1,0],[0,0]]), destination_pts=np.array(self.points))
+        self._transform = projective_transform_from_pts(source_pts=np.array([[0,0],[1,0],[1,1],[0,1]]), destination_pts=np.array(self.points))
 
     def to_shapely(self) -> Polygon:
         return Polygon([self.top_left, self.top_right, self.bottom_right, self.bottom_left])
