@@ -25,7 +25,7 @@ router = APIRouter(
 path = Path(os.path.realpath(__file__)).parents[0]
 
 
-@router.get("/{layer}/wms6")
+@router.get("/{layer}/wms")
 async def get_wms_capabilities(request: Request, layer: str,
                                REQUEST: str, SERVICE: str = 'WMS',
                                LAYERS=None, CRS: str = None, SRS: str = None, BBOX: str = None, WIDTH=None, HEIGHT=None,
@@ -54,12 +54,13 @@ async def get_wms_capabilities(request: Request, layer: str,
             crs = GeoCrs(SRS)
         else:
             raise ValueError("No CRS/SRS provided")
-        georect = GeoRect(bbx[:2], bbx[2:], crs=crs)
         geostorage: GeoStorage = request.app.geostorage
-        georect = GeoRect.from_bounds(bbx, crs=GeoCrs(CRS))
+        import pyproj
+        georect = GeoRect.from_bounds(bbx, crs=GeoCrs(pyproj.CRS.from_epsg(4326)))#TODO
         layer = geostorage.get_layer(layer)
         get_raster_start = time.time()
         #try:
+        #import pdb; pdb.set_trace()
         raster = layer.get_raster_for_rect(georect, no_data_value=int(0), resolution_rc=(int(HEIGHT), int(WIDTH)))
         print(raster.data.sum())
         raster_data = raster.data.astype(np.uint8)
@@ -80,11 +81,9 @@ async def get_wms_capabilities(request: Request, layer: str,
         #img_png.seek(0)
         print("Whole wms request took {} seconds.".format(time.time() - start))
         raster_data = np.flip(raster_data, axis=2)
-        cv.imwrite('img.png', raster_data)
         img_png = cv.imencode('.png', raster_data, params=[cv.IMWRITE_PNG_COMPRESSION, 0])[1]
-        with open('test.png', 'wb') as f:
-            f.write(img_png.tobytes())
-        return StreamingResponse(BytesIO(img_png), media_type="image/png")
+        return Response(img_png.tobytes(), media_type="image/png")
+        #return StreamingResponse(BytesIO(img_png), media_type="image/png")
     return "Request not known"
 
 
