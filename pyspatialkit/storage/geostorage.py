@@ -2,6 +2,7 @@ from pathlib import Path
 import os
 import json
 from typing import Optional, Tuple
+import webbrowser
 
 import numpy as np
 
@@ -69,3 +70,8 @@ class GeoStorage:
                          pixel_size_xy: Tuple[float, float] = (1,1,), build_pyramid:bool=True) -> GeoRasterLayer:
         return self._add_layer(layer_name=layer_name, layer_type=GeoRasterLayer, num_bands=num_bands, dtype=dtype, crs=crs,
                                 bounds=bounds, fill_value=fill_value,pixel_size_xy=pixel_size_xy, build_pyramid=build_pyramid)
+
+    def plot_cesium(self):
+        from ..visualization.cesium.backend.server import start_server #We do it here to avoid cyclic dependencies
+        start_server(self)
+
