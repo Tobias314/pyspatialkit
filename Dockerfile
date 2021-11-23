@@ -78,8 +78,7 @@ RUN apt-get update \
 ENV NVIDIA_VISIBLE_DEVICES all
 ENV NVIDIA_DRIVER_CAPABILITIES graphics,utility,compute
 
-
-################################## Dependencies ##################################
+################################## Conda Dependencies ##################################
 # Conda
 RUN conda config --add channels conda-forge
 RUN conda config --set channel_priority strict
@@ -95,4 +94,18 @@ RUN conda install -n env -c conda-forge pygeos -y
 RUN conda install -n env -c conda-forge fastapi uvicorn -y
 RUN conda install -n env -c conda-forge genshi -y
 RUN conda install -n env -c conda-forge opencv -y
+RUN conda install -n env -c conda-forge eo-learn -y
+RUN conda install -n env -c open3d-admin -c conda-forge open3d -y
+RUN conda install -n env -c conda-forge pdal -y
+RUN conda install -n env -c conda-forge python-pdal -y
 # RUN conda install -n env pytorch torchvision torchaudio cudatoolkit=10.2 -c pytorch
+
+
+################################## Npm Dependencies ##################################
+RUN apt update
+RUN apt install curl -y
+RUN DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends tzdata
+RUN sh -c 'curl -fsSL https://deb.nodesource.com/setup_16.x | bash'
+RUN apt install -y nodejs
+RUN npm install -g npm
+RUN npm install -g typescript
