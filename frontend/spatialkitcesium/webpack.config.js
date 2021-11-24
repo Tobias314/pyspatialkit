@@ -2,8 +2,9 @@ const path = require('path');
 
 module.exports = {
   mode: 'development',
-  entry: './src/app/app.tsx',
-  devtool: 'inline-source-map',
+  context: path.resolve(__dirname, 'src'),
+  entry: './app/app.tsx',
+  devtool: 'source-map',
   devServer: {
     static: './public',
   },
