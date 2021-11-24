@@ -9,6 +9,36 @@
             "type": "python",
             "request": "launch",
             "module": "pyspatialkit"
+        },
+        {
+            "type": "chrome",
+            "request": "launch",
+            "reAttach": true,
+            "name": "frontend",
+            "url": "http://localhost:8080/",
+            "port": 9222,
+            "webRoot": "${workspaceRoot}/frontend/spatialkitcesium/src/app/",
+            "sourceMaps": "server",
+            //"trace": "verbose",
+            //"timeout": 5,
+            "pathMappings": [
+                {
+                    "url": "webpack:///app",
+                    "path": "${webRoot}/*"
+                }
+            ]
+        },
+        {
+            "type": "chrome",
+            "request": "launch",
+            "name": "spatialkitcesium_chrome",
+            "url": "http://localhost:8080/",
+            "webRoot": "${workspaceRoot}/frontend/spatialkitcesium/src",
+            "sourceMaps": true,
+            "sourceMapPathOverrides": {
+                "webpack:///./*": "${workspaceFolder}/frontend/spatialkitcesium/src/*",
+                "webpack:///../node_modules/*": "${workspaceFolder}/frontend/spatialkitcesium/node_modules/*",
+            },
         }
     ]
 }
