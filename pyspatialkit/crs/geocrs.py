@@ -1,17 +1,20 @@
 from typing import Union, Optional
-from numpy.lib.arraysetops import isin
 
+from numpy.lib.arraysetops import isin
 from pyproj import CRS
 import rasterio as rio
+import sentinelhub
 
 class GeoCrs:
-    def __init__(self, crs: Optional[Union[CRS, 'GeoCrs']] = None) -> None:
+    def __init__(self, crs: Optional[Union[CRS, 'GeoCrs', sentinelhub.CRS]] = None) -> None:
         if isinstance(crs, CRS):
             self._proj_crs = crs
         elif isinstance(crs, GeoCrs):
             self._proj_crs = crs.proj_crs
         elif isinstance(crs, str) or isinstance(crs, rio.crs.CRS):
             self._proj_crs = CRS(crs)
+        elif isinstance(crs, sentinelhub.CRS):
+            self._proj_crs = crs.pyproj_crs()
         else:
             self._proj_crs = None
 

@@ -28,10 +28,10 @@ def save_raster(raster: rio.io.DatasetReader, path: Union[str, Path], driver: st
     for band in bands:
         new_dataset.write(raster.read(band), band)
 
-def save_np_array_as_geotiff(img: np.ndarray, transform: np.ndarray, crs: GeoCrs, path: Union[str, Path]):
+def save_np_array_as_geotiff(img: np.ndarray, transform: np.ndarray, crs: GeoCrs, path: Union[str, Path], ignore_not_affine: bool = False):
     bands = img.shape[2] if len(img.shape)>2 else 1
     img_dim = [img.shape[0],img.shape[1]]
-    if not (transform[2,:2] == np.array([0,0])).all():
+    if not ignore_not_affine and not (transform[2,:2] == np.array([0,0])).all():
         raise AttributeError("The image needs to have an affine transformation for saving")
     transform = transform / transform[2,2]
     transform = Affine(*transform[0], *transform[1])

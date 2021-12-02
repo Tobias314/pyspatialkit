@@ -4,6 +4,7 @@ from pathlib import Path
 import numpy as np
 from pyproj import CRS, transformer
 from shapely.geometry import Polygon
+import sentinelhub
 
 from ..utils.linalg import projective_transform_from_pts
 
@@ -28,11 +29,16 @@ class GeoRect:
         self._create_cache()
 
     @classmethod
-    def from_points(points: Union[List[Tuple[float,float]], np.ndarray], crs: GeoCrs) -> 'GeoRect':
+    def from_points(cls, points: Union[List[Tuple[float,float]], np.ndarray], crs: GeoCrs) -> 'GeoRect':
         return GeoRect(points[0], points[2], points[1], points[3], crs=crs)
 
-    def from_bounds(bounds: Tuple[float,float,float,float], crs: GeoCrs) -> 'GeoRect':
+    @classmethod
+    def from_bounds(cls, bounds: Tuple[float,float,float,float], crs: GeoCrs) -> 'GeoRect':
         return GeoRect(bounds[:2], bounds[2:], crs=crs)
+
+    @classmethod
+    def from_sentinelhub_bbox(cls, sentinelhub_bbox: sentinelhub.BBox):
+        return GeoRect(sentinelhub_bbox.lower_left, sentinelhub_bbox.upper_right, crs=GeoCrs(sentinelhub_bbox.crs))
 
     def _create_cache(self, points: Optional[Union[List[Tuple[float,float]], np.ndarray]] = None):
         if points is not None:
