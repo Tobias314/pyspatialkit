@@ -65,6 +65,7 @@ class TileDbBackend:
         return index_bounds
 
     def write_data(self, bounds: Tuple[float, float, float, float], data: np.ndarray) -> None:
+        #TODO check whether bounds in layer bounds
         assert data.shape[-1] == self.num_bands
         assert data.dtype == self.dtype
         data = data.squeeze()

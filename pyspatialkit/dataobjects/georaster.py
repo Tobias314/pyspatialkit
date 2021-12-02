@@ -28,7 +28,7 @@ class GeoRaster:
         else:
             raise AttributeError('Raster data must be 2D! Data attribute has shape {}'.format(data.shape) +
                                   ' but needs to have either shape (width, height) or (width, heith,num_channels))!')
-        #images indices are [row,col] while coordinate transforms work with [x,y], so wie need to swap x,y and flip y
+        #images indices are [row,col] while coordinate transforms work with [x,y], so we need to swap x,y and flip y
         self._row_col_to_x_y = np.array([[0, 1/self.data.shape[1], 0],  [-1/self.data.shape[0], 0, 1], [0, 0, 1]])
         self._swap_x_y = np.array([[0,1,0],[1,0,0],[0,0,1]])
         self._transform = self.georect.transform @ self._row_col_to_x_y
@@ -93,8 +93,8 @@ class GeoRaster:
     def plot(self):
         self.plot_plt()
 
-    def to_file(self, file_path: Union[str, Path]):
-        save_np_array_as_geotiff(self.data, self.transform, self.crs, file_path)
+    def to_file(self, file_path: Union[str, Path], ignore_not_affine: bool = False):
+        save_np_array_as_geotiff(self.data, self.transform @ self._swap_x_y, self.crs, file_path, ignore_not_affine)
 
     @property
     def transform(self):
