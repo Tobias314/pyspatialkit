@@ -7,16 +7,43 @@ import ReactDOM from "react-dom";
 import {sayHello} from "./test";
 import { Viewer } from "resium";
 
-import {CesiumViewer} from "./cesiumviewer"
-import {LayerList} from "./layerlist"
+import {CesiumViewer} from "./components/cesiumviewer"
+import {LayerListView} from "./components/layerlistview"
+import { LayerInterface } from './layers/layerinterface';
+import {getLayers} from './backend/geostorage';
 
-function App() {
-    return (
-        <div className="d-flex">
-            <LayerList layerNames={['layer1', 'layer2', 'layer3', 'layer4']}/>
-            <CesiumViewer/>
-        </div>
-    )
+interface AppState{
+    layers: Array<LayerInterface>;
+    selectedLayers: Set<number>;
+}
+
+class App extends React.Component<{}, AppState>{
+
+    constructor(props: {}){
+        super(props);
+        this.state = {
+            layers: new Array(),
+            selectedLayers: new Set(),
+        };
+    }
+
+    componentDidMount(){
+        getLayers(layers => {
+            this.setState({
+                layers: layers
+            });
+        });
+    }
+
+    render(){
+        console.log(this.state);
+        return (
+            <div className="d-flex">
+                <LayerListView layers={this.state.layers}/>
+                <CesiumViewer/>
+            </div>
+        )
   }
+}
 
 ReactDOM.render(<App />, document.getElementById("root"));

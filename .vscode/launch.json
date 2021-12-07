@@ -31,14 +31,14 @@
         {
             "type": "chrome",
             "request": "launch",
-            "name": "spatialkitcesium_chrome",
-            "url": "http://localhost:8080/",
-            "webRoot": "${workspaceRoot}/frontend/spatialkitcesium/src",
+            "name": "Chrome",
+            "url": "http://localhost:8081/",
+            "webRoot": "${workspaceRoot}/frontend/spatialkitcesium/",
             "sourceMaps": true,
-            "sourceMapPathOverrides": {
-                "webpack:///./*": "${workspaceFolder}/frontend/spatialkitcesium/src/*",
-                "webpack:///../node_modules/*": "${workspaceFolder}/frontend/spatialkitcesium/node_modules/*",
-            },
+            //"sourceMapPathOverrides": {
+            //    "webpack:///./*": "${workspaceFolder}/frontend/spatialkitcesium/src/*",
+            //    "webpack:///../node_modules/*": "${workspaceFolder}/frontend/spatialkitcesium/node_modules/*",
+            //},
         }
     ]
 }
