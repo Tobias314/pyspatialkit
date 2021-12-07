@@ -71,7 +71,7 @@ class GeoRaster:
         assert self.data.dtype == other.data.dtype
         if self.crs != other.crs:
             raise AttributeError("GeoRasters have different crs.")
-        inv_mat = self._swap_x_y @ np.linalg.inv(other.transform) @ self.transform @ self._swap_x_y
+        inv_mat = (self._swap_x_y @ np.linalg.inv(other.transform) @ self.transform @ self._swap_x_y).round(6) #TODO: We round to prevent problems from float inaccuracies. Think about a better method for this!!!
         project_skimage(other.data, self.data, inv_mat, other_no_data_value, other_mask,
                         self_no_data_value, self_mask)
 
