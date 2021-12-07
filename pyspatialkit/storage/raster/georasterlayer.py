@@ -72,8 +72,8 @@ class GeoRasterLayer(GeoLayer):
         t1 = time.time()
         raster_data = self.backend.get_data(bounds, resolution_rc)
         print("backend request took: {}".format(time.time() - t1))
-        if len(raster_data.shape)==2:
-            raster_data = raster_data[:,:,np.newaxis]
+        #if len(raster_data.shape)==2:
+        #    raster_data = raster_data[:,:,np.newaxis]
         if band is not None:
             raster_data = raster_data[:,:,band]
         if georect.is_axis_aligned:

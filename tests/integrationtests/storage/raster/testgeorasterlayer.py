@@ -23,5 +23,9 @@ class TestGeoRasterLayer(unittest.TestCase):
     def test_read_write(self):
         raster = GeoRaster(GeoRect((750,100), (1750,1100), crs=NoneCRS()), np.ones((1000,1000)))
         self.raster_layer.writer_raster_data(raster)
+        #raster = GeoRaster(GeoRect((9500,9500), (10500,10500), crs=NoneCRS()), np.ones((1000,1000)))
+        #self.raster_layer.writer_raster_data(raster)
         res = self.raster_layer.get_raster_for_rect(GeoRect((0,0), (1000,1000), crs=NoneCRS()))
         self.assertEqual(res.data.sum(), 900*250)
+        res = self.raster_layer.get_raster_for_rect(GeoRect((9500,9500), (10500,10500), crs=NoneCRS()))
+        #self.assertEqual(res.data.sum(), 500*500)
