@@ -1,20 +1,19 @@
 import React from "react"
 
 import ListGroup from "react-bootstrap/ListGroup"
+import { LayerInterface } from "../layers/layerinterface";
 
 export declare interface LayerListProps{
-    layerNames: string[]
+    layers: LayerInterface[]
 }
 
-export class LayerList extends React.Component<LayerListProps>{
+export class LayerListView extends React.Component<LayerListProps>{
 
-    constructor(props: LayerListProps){
-        super(props)
-    }
+    
 
     render(){
-        const listItems = this.props.layerNames.map((layer: string) => 
-            <ListGroup.Item action key={layer}>{layer}
+        const listItems = this.props.layers.map((layer) => 
+            <ListGroup.Item action key={layer.name}>{layer.name}
             </ListGroup.Item>
         );
         return (
