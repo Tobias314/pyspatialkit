@@ -19,7 +19,8 @@ from .geostorageroutes import router as geostorage_router
 from .rasterroutes import router as raster_router
 from .staticroutes import router as static_router
 
-frontend_path = Path(os.path.realpath(__file__)).parents[1] / 'frontend/'
+#frontend_path = Path(os.path.realpath(__file__)).parents[1] / 'frontend/'
+frontend_path = Path('/workspaces/pyspatialkit/frontend/spatialkitcesium/public')
 
 
 
@@ -57,6 +58,7 @@ def start_server(geostorage: GeoStorage) -> None:
     app.include_router(geostorage_router)
     app.include_router(raster_router)
     app.mount("/static", StaticFiles(directory=frontend_path), name="static")
+    app.mount("/Widgets", StaticFiles(directory=frontend_path/"Widgets"), name="static")
     my_middleware = LowerCaseMiddleware()
     app.middleware("http")(my_middleware)
     app.add_middleware(
@@ -70,7 +72,7 @@ def start_server(geostorage: GeoStorage) -> None:
     config = uvicorn.Config(app, host="127.0.0.1", port=8080, log_level="info")
     server = Server(config=config)
     with server.run_in_thread():#TODO do not just wait for input here
-        webbrowser.open("http://127.0.0.1:8080/")
+        webbrowser.open("http://127.0.0.1:8080/static/")
         inp = input()
 
 #print("TEST")

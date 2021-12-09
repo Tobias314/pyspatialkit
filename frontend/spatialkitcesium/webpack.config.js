@@ -1,8 +1,12 @@
 const path = require('path');
 
 const webpack = require('webpack');
-const HtmlPlugin = require("html-webpack-plugin");
+const HtmlWebpackPlugin = require("html-webpack-plugin");
 const CopyWebpackPlugin = require("copy-webpack-plugin");
+
+// The path to the CesiumJS source code
+const cesiumSource = 'node_modules/cesium/Source';
+const cesiumWorkers = '../Build/Cesium/Workers';
 
 module.exports = {
   mode: 'development',
@@ -15,9 +19,32 @@ module.exports = {
   output: {
     filename: 'build/bundle.js',
     path: path.resolve(__dirname, 'public'),
+    sourcePrefix: ''
+  },
+  amd: {
+      // Enable webpack-friendly use of require in Cesium
+      toUrlUndefined: true
+  },
+  node: {
+      // Resolve node module use of fs
+      //fs: 'empty'
   },
   resolve: {
-    extensions: ['.ts', '.tsx', '.js']
+    alias: {
+      cesium: path.resolve(__dirname, cesiumSource)
+    },
+    mainFiles: ['index', 'Cesium'],
+    extensions: ['.ts', '.tsx', '.js'],
+    fallback: {
+      fs: false
+    },
+    modules: [
+      path.join(__dirname, 'node_modules')
+  ]
+    //alias: {
+      // CesiumJS module name
+      //cesium: path.resolve(__dirname, cesiumSource)
+    //}
   },
   module: {
     rules: [
@@ -36,16 +63,21 @@ module.exports = {
     ]
   },
   plugins: [
-    new HtmlPlugin({
+    new HtmlWebpackPlugin({
       template: "./src/html/index.html",
     }),
     new CopyWebpackPlugin({
       patterns: [
-        { from: "node_modules/cesium/Build/Cesium/Workers/", to: "Workers" },
-        { from: "node_modules/cesium/Build/Cesium/ThirdParty/", to: "ThirdParty" },
-        { from: "node_modules/cesium/Build/Cesium/Assets/", to: "Assets" },
-        { from: "node_modules/cesium/Build/Cesium/Widgets/", to: "Widgets" },
-      ],
+        { from: path.join(cesiumSource, cesiumWorkers), to: 'Workers' },
+        { from: path.join(cesiumSource, 'Assets'), to: 'Assets' },
+        { from: path.join(cesiumSource, 'Widgets'), to: 'Widgets' }
+    ]
+      //patterns: [
+      //  { from: "node_modules/cesium/Build/Cesium/Workers/", to: "Workers" },
+      //  { from: "node_modules/cesium/Build/Cesium/ThirdParty/", to: "ThirdParty" },
+      //  { from: "node_modules/cesium/Build/Cesium/Assets/", to: "Assets" },
+      //  { from: "node_modules/cesium/Build/Cesium/Widgets/", to: "Widgets" },
+      //],
     }),
     new webpack.DefinePlugin({
       CESIUM_BASE_URL: JSON.stringify(""),

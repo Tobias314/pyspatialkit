@@ -4,17 +4,23 @@ import ListGroup from "react-bootstrap/ListGroup"
 import { LayerInterface } from "../layers/layerinterface";
 
 export declare interface LayerListProps{
-    layers: LayerInterface[]
+    layers: LayerInterface[],
+    selectedLayers: Set<number>,
+    onToggleLayer: (layerIndex: number) => void
 }
 
 export class LayerListView extends React.Component<LayerListProps>{
 
+    constructor(props: LayerListProps){
+        super(props);
+    }
     
 
     render(){
-        const listItems = this.props.layers.map((layer) => 
-            <ListGroup.Item action key={layer.name}>{layer.name}
-            </ListGroup.Item>
+        const listItems = this.props.layers.map((layer, index) => 
+                <ListGroup.Item action key={index} onClick={() => this.props.onToggleLayer(index)} >
+                    {layer.name}  <input type="checkbox" checked={this.props.selectedLayers.has(index)} onChange={() => {}}/>
+                </ListGroup.Item>
         );
         return (
             <ListGroup>

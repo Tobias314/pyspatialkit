@@ -35,12 +35,23 @@ class App extends React.Component<{}, AppState>{
         });
     }
 
+    toggleLayer(layerIndex: number){
+        this.setState((state) => {
+            let selectedLayers = state.selectedLayers;
+            if(selectedLayers.has(layerIndex)){
+                selectedLayers.delete(layerIndex);
+            }else{
+                selectedLayers.add(layerIndex)
+            }
+            return {selectedLayers: selectedLayers};
+        });
+    }
+
     render(){
-        console.log(this.state);
         return (
             <div className="d-flex">
-                <LayerListView layers={this.state.layers}/>
-                <CesiumViewer/>
+                <LayerListView layers={this.state.layers} selectedLayers={this.state.selectedLayers} onToggleLayer={this.toggleLayer.bind(this)}/>
+                <CesiumViewer layers={[...this.state.selectedLayers].map(layerIndex => this.state.layers[layerIndex])}/>
             </div>
         )
   }

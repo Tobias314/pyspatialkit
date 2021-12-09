@@ -13,24 +13,6 @@
         {
             "type": "chrome",
             "request": "launch",
-            "reAttach": true,
-            "name": "frontend",
-            "url": "http://localhost:8080/",
-            "port": 9222,
-            "webRoot": "${workspaceRoot}/frontend/spatialkitcesium/src/app/",
-            "sourceMaps": "server",
-            //"trace": "verbose",
-            //"timeout": 5,
-            "pathMappings": [
-                {
-                    "url": "webpack:///app",
-                    "path": "${webRoot}/*"
-                }
-            ]
-        },
-        {
-            "type": "chrome",
-            "request": "launch",
             "name": "Chrome",
             "url": "http://localhost:8081/",
             "webRoot": "${workspaceRoot}/frontend/spatialkitcesium/",
