@@ -2,6 +2,7 @@ from typing import Tuple, Union, Optional
 from pathlib import Path
 import math
 import time
+import shutil
 
 import numpy as np
 import tiledb
@@ -63,8 +64,8 @@ class TileDbBackend:
         index_bounds[:2] = (index_bounds[:2] - self.bounds[:2]) / self.pixel_size_xy
         index_bounds[2:4] = (index_bounds[2:4] - self.bounds[:2]) / self.pixel_size_xy
         index_bounds = np.array([self.dims[0] - index_bounds[3], index_bounds[0], self.dims[0] - index_bounds[1], index_bounds[2]], dtype=int)
-        print("got bounds:" + str(bounds))
-        print("to Indexes:" + str(index_bounds))
+        #print("got bounds:" + str(bounds))
+        #print("to Indexes:" + str(index_bounds))
         return index_bounds
 
     def _read_array_region(self, db_read: tiledb.DenseArray, ax0_range: Tuple[int, int], ax1_range: Tuple[int, int]) -> np.ndarray:
@@ -115,6 +116,7 @@ class TileDbBackend:
                 self.dirty_regions.append(indexes)
 
     def update_pyramid(self) -> None:
+        print("UPDATING PYRAMIDS")
         dirty_regions = self.dirty_regions
         for layer in range(1, self.num_pyramid_layers+1):
             write_db_path = self.layers[layer][0]
@@ -124,9 +126,9 @@ class TileDbBackend:
                 for index_bounds in dirty_regions:
                     upper_level_index_bounds = np.concatenate([np.floor(index_bounds[:2] / 2), np.ceil(index_bounds[2:4] / 2)]).astype(int)
                     index_bounds = upper_level_index_bounds * 2
-                    print(index_bounds)
+                    #print(index_bounds)
                     img = self._read_array_region(self.layers[layer-1][1], (index_bounds[0],index_bounds[2]), (index_bounds[1],index_bounds[3]))
-                    print(img.shape)
+                    #print(img.shape)
                     img = img.astype(self.next_bigger_dtype)
                     img_low_res = ((img[::2,::2] + img[1::2,::2] + img[::2,1::2] + img[1::2,1::2]) / 4).astype(self.dtype)
                     self._write_array_region(db, (upper_level_index_bounds[0],upper_level_index_bounds[2]), (upper_level_index_bounds[1],upper_level_index_bounds[3]), data=img_low_res)
@@ -147,9 +149,11 @@ class TileDbBackend:
         t1 = time.time()
         res = self._read_array_region(self.layers[layer][1], (indexes[0],indexes[2]),(indexes[1],indexes[3]))
         print("db request took: {}".format(time.time() - t1))
-        return res
+        return res        
 
-    def close_all_db_connections(self):
+    def delete_permanently(self):
         for layer in self.layers:
             layer[1].close()
+        shutil.rmtree(self.directory_path)
+
 

@@ -2,7 +2,7 @@ from pathlib import Path
 import os
 import json
 from typing import Optional, Tuple
-import webbrowser
+import shutil
 
 import numpy as np
 
@@ -12,7 +12,7 @@ from ..utils.logging import logger
 from ..utils.fileio import force_delete_directory
 from .raster.georasterlayer import GeoRasterLayer
 from ..crs.geocrs import GeoCrs
-from .. import DEFAULT_CRS
+from ..globals import DEFAULT_CRS
 
 class GeoStorage:
 
@@ -46,6 +46,11 @@ class GeoStorage:
             logger().warning("A layer with this name does not exist, returning None")
             return None
         return self.layers[layer_name]
+
+    def delete(self):
+        for layer in self.layers.values():
+            layer.delete()
+        shutil.rmtree(self.directory_path)
 
     def delete_layer(self, layer_name: str):
         if layer_name not in self.layers:

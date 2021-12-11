@@ -1,8 +1,10 @@
-from pyproj import Transformer, crs
-
 from typing import Any, Tuple
 
+from pyproj import Transformer, crs
+from shapely.ops import transform as shapely_transform
+
 from .geocrs import GeoCrs, NoneCRS
+from ..utils.shapely import SHAPELY_GEOMETRY_TYPE
 
 class GeoCrsTransformer:
 
@@ -16,3 +18,6 @@ class GeoCrsTransformer:
 
     def transform(self, xx: Any, yy: Any) -> Tuple[Any, Any]:
         return self.proj_transformer.transform(xx, yy)
+
+    def transform_shapely_shape(self, shape: SHAPELY_GEOMETRY_TYPE) -> SHAPELY_GEOMETRY_TYPE:
+        return shapely_transform(self.proj_transformer.transform, shape)
