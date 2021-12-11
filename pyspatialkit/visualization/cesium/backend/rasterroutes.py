@@ -30,7 +30,7 @@ async def get_wms_capabilities(request: Request, layer: str,
                                REQUEST: str, SERVICE: str = 'WMS',
                                LAYERS=None, CRS: str = None, SRS: str = None, BBOX: str = None, WIDTH=None, HEIGHT=None,
                                FORMAT='Image/png', VERSION='1.1.1', STYLES=''):  # TODO: type hints missing
-    print("WMS-REQUEST")
+    #print("WMS-REQUEST")
     assert (SERVICE.lower() == 'wms')
     if REQUEST.lower() == "getcapabilities":
         with open(path / 'resources' / 'wmscapabilitiestemplate.xml') as template:
@@ -62,13 +62,13 @@ async def get_wms_capabilities(request: Request, layer: str,
         #try:
         #import pdb; pdb.set_trace()
         raster = layer.get_raster_for_rect(georect, no_data_value=int(0), resolution_rc=(int(HEIGHT), int(WIDTH)))
-        print(raster.data.sum())
+        #print(raster.data.sum())
         raster_data = raster.data.astype(np.uint8)
-        print("BOUNDS: " + str(bbx))
-        print("BOUNDS TRANSFORMED: " + str(georect.get_bounds()))
-        print("RESOLUTION: " + str((int(HEIGHT), int(WIDTH))))
-        print(layer.directory_path)
-        print("get_raster_for_rect(..) took {} seconds".format(time.time() - get_raster_start))
+        #print("BOUNDS: " + str(bbx))
+        #print("BOUNDS TRANSFORMED: " + str(georect.get_bounds()))
+        #print("RESOLUTION: " + str((int(HEIGHT), int(WIDTH))))
+        #print(layer.directory_path)
+        #print("get_raster_for_rect(..) took {} seconds".format(time.time() - get_raster_start))
         #except Exception as e:
             #print(e)
             #raster_data = np.ones((int(HEIGHT), int(WIDTH)), dtype=np.uint8) * 160

@@ -27,10 +27,17 @@ class GeoCrs:
             pass
         return GeoCrs(proj_crs)
 
+    @classmethod
+    def from_epsg(cls, epsg_code: int):
+        return GeoCrs(CRS.from_epsg(epsg_code))
+
     def to_dict(self):
         res = {}
         res['proj_crs'] = str(self._proj_crs)
         return res
+
+    def to_pyproj_crs(self):
+        return self.proj_crs
 
     def __eq__(self, other):
         """Overrides the default implementation"""

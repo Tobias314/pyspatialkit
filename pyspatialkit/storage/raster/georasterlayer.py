@@ -1,6 +1,6 @@
 from abc import abstractmethod
 from pathlib import Path
-from typing import Optional, Tuple
+from typing import Optional, Tuple, Callable
 import json
 from collections.abc import Iterable
 
@@ -10,7 +10,8 @@ from skimage.transform import resize
 from matplotlib import pyplot as plt
 import cv2 as cv
 
-from pyspatialkit import DEFAULT_CRS
+from ...globals import DEFAULT_CRS
+from ...tiling.geotiler2d import GeoTiler2d
 from ..geolayer import GeoLayer
 from ...crs.geocrs import GeoCrs, NoneCRS
 from ...crs.utils import crs_bounds
@@ -34,6 +35,7 @@ class GeoRasterLayer(GeoLayer):
         self.pixel_size_xy = pixel_size_xy
         self.fill_value = fill_value
         self.build_pyramid = build_pyramid
+        self._eager_pyramid_update = True
         self.backend = TileDbBackend(bounds=self.bounds, num_bands=self.num_bands, dtype=self.dtype,
                                      directory_path=self.directory_path / BACKEND_DIRECTORY_NAME, fill_value=self.fill_value, 
                                      pixel_size_xy=self.pixel_size_xy, build_pyramid=self.build_pyramid)
@@ -71,20 +73,20 @@ class GeoRasterLayer(GeoLayer):
         bounds = np.array(georect.get_bounds()).astype(int)
         t1 = time.time()
         raster_data = self.backend.get_data(bounds, resolution_rc)
-        print("backend request took: {}".format(time.time() - t1))
+        #print("backend request took: {}".format(time.time() - t1))
         #if len(raster_data.shape)==2:
         #    raster_data = raster_data[:,:,np.newaxis]
         if band is not None:
             raster_data = raster_data[:,:,band]
         if georect.is_axis_aligned:
-            print("aligned")
-            print(raster_data.shape[:2])
+            #print("aligned")
+            #print(raster_data.shape[:2])
             if resolution_rc is not None and raster_data.shape[:2] != tuple(resolution_rc):
-                print("reshape aligned")
+                #print("reshape aligned")
                 trs = time.time()
                 #raster_data = resize(raster_data, (resolugion_rc[1], resolution_rc[1]), preserve_range=True, anti_aliasing=False, order=1).astype(self.dtype)
                 raster_data = cv.resize(raster_data, dsize=(resolution_rc[1], resolution_rc[0]))
-                print("resize took: {}".format(time.time() - trs))
+                #print("resize took: {}".format(time.time() - trs))
             return GeoRaster(georect, raster_data)
         else:
             bounds_rect = GeoRect(bottom_left=bounds[:2], top_right=bounds[2:], crs=self.crs)
@@ -105,8 +107,29 @@ class GeoRasterLayer(GeoLayer):
         current.merge_projected_other(georaster)
         bounds = np.array(georaster.georect.get_bounds()).astype(int)
         self.backend.write_data(bounds, current.data)
-        if self.build_pyramid:
+        if self.build_pyramid and self._eager_pyramid_update:
             self.backend.update_pyramid() #TODO: make this more efficient for bulk writes by doing bulk updates
+
+    def begin_pyramid_update_transaction(self):
+        self._eager_pyramid_update = False
+
+    def commit_pyramid_update_transaction(self):
+        if not self._eager_pyramid_update:
+            if self.build_pyramid:
+                self.backend.update_pyramid()
+            self._eager_pyramid_update = True
+
+    def apply(self, tiler: GeoTiler2d, transformer: Callable[[GeoRaster], GeoRaster], output_layer: 'GeoRasterLayer',
+                resolution_rc: Optional[Tuple[int,int]]=None, band=None, no_data_value=0):
+        output_layer.begin_pyramid_update_transaction()
+        for tile in tiler:
+            georaster = self.get_raster_for_rect(tile,  resolution_rc=resolution_rc, band=band, no_data_value=no_data_value,)
+            georaster = transformer(georaster)
+            output_layer.writer_raster_data(georaster)
+        output_layer.commit_pyramid_update_transaction()
+
+    def delete(self):
+        self.backend.delete_permanently()
 
     @property
     def name(self):

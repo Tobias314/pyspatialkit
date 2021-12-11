@@ -99,6 +99,7 @@ RUN conda install -n env -c open3d-admin -c conda-forge open3d -y
 RUN conda install -n env -c conda-forge pdal -y
 RUN conda install -n env -c conda-forge python-pdal -y
 RUN conda install -n env -c conda-forge sentinelhub -y
+RUN conda install -n env -c conda-forge "shapely<1.8.0" -y
 RUN conda install -n env -c conda-forge eo-learn -y
 # RUN conda install -n env pytorch torchvision torchaudio cudatoolkit=10.2 -c pytorch
 

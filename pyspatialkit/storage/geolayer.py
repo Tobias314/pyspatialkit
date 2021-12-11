@@ -2,7 +2,7 @@ from typing import Optional
 from pathlib import Path
 from abc import ABC, abstractmethod
 
-from .. import DEFAULT_CRS
+from ..globals import DEFAULT_CRS
 
 
 class GeoLayer(ABC):
@@ -36,6 +36,10 @@ class GeoLayer(ABC):
 
     @abstractmethod
     def load_data(self, ir_path: Path):
+        raise NotImplementedError
+
+    @abstractmethod
+    def delete(self):
         raise NotImplementedError
 
     @property
