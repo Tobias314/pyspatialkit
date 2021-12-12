@@ -2,6 +2,10 @@ import json
 from typing import Union, Tuple, List, Optional, Type, TypeVar
 from pathlib import Path
 
+from crs.geocrs import NoneCRS
+from dataobjects.georaster import GeoRaster
+from spacedescriptors.georect import GeoRect
+
 T = TypeVar('T', bound='TrivialClass')
 
 import open3d as o3d
@@ -14,6 +18,8 @@ from matplotlib import cm
 
 from . import geomesh
 from ..processing.pointcloud.utils import points3d_to_image
+from ..crs.geocrs import GeoCrs, NoneCRS
+from ..crs.geocrstransformer import GeoCrsTransformer
 
 
 class GeoPointCloud:
@@ -21,13 +27,15 @@ class GeoPointCloud:
     def __init__(self):
         self.data = pd.DataFrame(columns=['x', 'y', 'z'])
         self.rgb_max = 1.0
+        self.crs = NoneCRS
         self._reset_cached()
 
     @classmethod
-    def from_numpy_arrays(self, xyz: np.ndarray, rgb: Union[np.ndarray, None] = None, rgb_max=1.0,
+    def from_numpy_arrays(self, xyz: np.ndarray, crs: GeoCrs=NoneCRS, rgb: Union[np.ndarray, None] = None, rgb_max=1.0,
                           normals_xyz: Union[np.ndarray, None] = None, curvature: Union[np.ndarray, None] = None,
                           data_axis_is_first=False):
         cloud = GeoPointCloud()
+        cloud.crs = crs
         if data_axis_is_first:
             xyz = xyz.transpose()
         cloud.data['x'] = xyz[:, 0]
@@ -52,16 +60,17 @@ class GeoPointCloud:
         return GeoPointCloud()
 
     @classmethod
-    def from_pandas(cls, data_frame: pd.DataFrame, rgb_max=1.0):
+    def from_pandas(cls, data_frame: pd.DataFrame, crs: GeoCrs=NoneCRS(), rgb_max=1.0):
         if 'x' not in data_frame or 'y' not in data_frame or 'z' not in data_frame:
             raise KeyError("DataFrame needs at least columns x,y,z.")
         cloud = GeoPointCloud()
         cloud.data = data_frame
+        cloud.crs = crs
         cloud.rgb_max = rgb_max
         return cloud
 
     @classmethod
-    def from_structured_array(cls, structured_array: np.ndarray, rgb_max=1.0):
+    def from_structured_array(cls, structured_array: np.ndarray, crs: GeoCrs=NoneCRS(), rgb_max=1.0):
         x = structured_array['X']
         y = structured_array['Y']
         z = structured_array['Z']
@@ -77,11 +86,11 @@ class GeoPointCloud:
         curvature = None
         if 'Curvature' in fields:
             curvature = structured_array['Curvature']
-        return GeoPointCloud.from_numpy_arrays(xyz, rgb=rgb, rgb_max=rgb_max, normals_xyz=normals_xyz,
+        return GeoPointCloud.from_numpy_arrays(xyz, crs=crs, rgb=rgb, rgb_max=rgb_max, normals_xyz=normals_xyz,
                                                curvature=curvature, data_axis_is_first=True)
 
     @classmethod
-    def from_o3d(cls, o3d_point_cloud: o3d.geometry.PointCloud, rgb_max=255):
+    def from_o3d(cls, o3d_point_cloud: o3d.geometry.PointCloud, crs: GeoCrs = NoneCRS(), rgb_max=255):
         if (not o3d_point_cloud.has_points()):
             raise ValueError("Open3d point cloud needs to have points")
         xyz = np.array(o3d_point_cloud.points)
@@ -95,19 +104,21 @@ class GeoPointCloud:
             rgb = np.array(o3d_point_cloud.colors)
             if (rgb.shape[0] != xyz.shape[0]):
                 rgb = None
-        return GeoPointCloud.from_numpy_arrays(xyz, rgb=rgb, normals_xyz=normals, rgb_max=rgb_max)
+        return GeoPointCloud.from_numpy_arrays(xyz, crs=crs, rgb=rgb, normals_xyz=normals, rgb_max=rgb_max)
 
     @classmethod
-    def from_las(cls, file_path):
+    def from_las(cls, file_path, crs:GeoCrs = NoneCRS()):
         pipeline_description = [str(file_path)]
         pipeline = pdal.Pipeline(json.dumps(pipeline_description))
         count = pipeline.execute()
         arrays = pipeline.arrays
         metadata = json.loads(pipeline.metadata)
-        return GeoPointCloud.from_structured_array(arrays[0], rgb_max=np.iinfo(np.uint16).max)
+        if isinstance(crs, NoneCRS):
+            crs = GeoCrs(metadata['metadata']['readers.las']['spatialreference'])
+        return GeoPointCloud.from_structured_array(arrays[0], crs=crs, rgb_max=np.iinfo(np.uint16).max)
 
     @classmethod
-    def from_xyz_file(cls, file_path: Union[str, Path], read_normals=False):
+    def from_xyz_file(cls, file_path: Union[str, Path], crs:GeoCrs=NoneCRS(), read_normals=False):
         file_path = Path(file_path)
         names = ('x', 'y', 'z')
         if read_normals:
@@ -117,16 +128,16 @@ class GeoPointCloud:
         normals = None
         if read_normals:
             normals = np.stack([points['n_x'].to_numpy(), points['n_y'].to_numpy(), points['n_z'].to_numpy()], axis=0)
-        return GeoPointCloud.from_numpy_arrays(xyz, normals_xyz=normals, data_axis_is_first=True)
+        return GeoPointCloud.from_numpy_arrays(xyz, crs=crs, normals_xyz=normals, data_axis_is_first=True)
 
     @classmethod
     def from_geomesh(cls: Type[T], mesh: geomesh.GeoMesh, point_density: float = 1,
-                     number_of_points: Optional[int] = None):
+                     number_of_points: Optional[int] = None, crs:GeoCrs=NoneCRS()):
         mo3d = mesh.to_o3d()
         if number_of_points is None:
             area = mo3d.get_surface_area()
             number_of_points = int(area * point_density)
-        return cls.from_o3d(mo3d.sample_points_uniformly(number_of_points=number_of_points))
+        return cls.from_o3d(mo3d.sample_points_uniformly(number_of_points=number_of_points), crs=crs)
 
     @classmethod
     def from_others(cls, others: List['GeoPointCloud'], keep_others=True) -> 'GeoPointCloud':
@@ -156,13 +167,28 @@ class GeoPointCloud:
     def x(self) -> pd.Series:
         return self.data['x']
 
+    @x.setter
+    def x(self, x: np.ndarray):
+        assert x.shape == self.x.shape
+        self.data['x'] = x
+
     @property
     def y(self) -> pd.Series:
         return self.data['z']
 
+    @y.setter
+    def y(self, y: np.ndarray):
+        assert y.shape == self.y.shape
+        self.data['y'] = y
+
     @property
     def z(self) -> pd.Series:
         return self.data['z']
+
+    @z.setter
+    def z(self, z: np.ndarray):
+        assert z.shape == self.z.shape
+        self.data['z'] = z
 
     @property
     def rgb(self) -> Optional[pd.DataFrame]:
@@ -226,6 +252,19 @@ class GeoPointCloud:
         dtypes = {}
         for key, value in self.data.items():
             dtypes[key] = value.dtype
+
+    def to_crs(self, new_crs: GeoCrs, crs_transformer: Optional[GeoCrsTransformer] = None, inplace=True) -> 'GeoPointCloud':
+        if crs_transformer is None:
+            crs_transformer = GeoCrsTransformer(self.crs, new_crs)
+        if inplace:
+            self.xyz = np.stack(crs_transformer.transform(self.x, self.y, self.z), axis=1)
+            self.crs = new_crs
+            self._reset_cached()
+            return self
+        else:
+            res = self.copy()
+            res.to_crs(new_crs = new_crs, crs_transformer=crs_transformer)
+            return res
 
     def to_o3d(self, normalize_rgb=True):
         xyz_o3d = o3d.utility.Vector3dVector(self.xyz.to_numpy())
@@ -298,7 +337,7 @@ class GeoPointCloud:
         if return_raw_output:
             return pipeline.arrays, pipeline.metadata, pipeline.log
         else:
-            return [GeoPointCloud.from_structured_array(a) for a in pipeline.arrays]
+            return [GeoPointCloud.from_structured_array(a, crs=self.crs) for a in pipeline.arrays]
 
     def filter_by_voxel_grid(self, voxel_grid: 'GeoVoxelGrid') -> 'GeoPointCloud':
         s_indices = ((self.xyz.to_numpy() - voxel_grid.origin) // voxel_grid.voxel_size).astype(int)
@@ -324,6 +363,15 @@ class GeoPointCloud:
         return points3d_to_image(pixel_size=pixel_size, xyz=xyz, values=values, up_axis=up_axis,
                                  empty_value=empty_value, ufunc=ufunc)
 
+    def to_georaster(self, pixel_size: float, value_field: Optional[str] = None, empty_value=0,
+                     ufunc: Optional[np.ufunc] = None) -> GeoRaster:
+        if self.crs.is_geocentric:
+            raise ValueError("Point clouds in geocentric coordinates cannot projected down along the z-axis to flatten them to earth surface")
+        img, origin = self.to_image(pixel_size=pixel_size, up_axis=2, value_field=value_field, empty_value=empty_value,
+                                     ufunc=ufunc)
+        georect = GeoRect(origin, (origin + img.shape[1], origin + img.shape[0]), crs=self.crs)
+        return GeoRaster(georect, img)
+
     def filter_by_image(self, image: np.ndarray, image_origin: Tuple[float, float] = (0, 0),
                         pixel_size: float = 1, up_axis: int = 2) -> 'GeoPointCloud':
         plane_axis = [0, 1, 2]
@@ -344,13 +392,13 @@ class GeoPointCloud:
     def copy(self, indices: Union[np.ndarray, None] = None):
         if indices is not None:
             if indices.dtype == np.bool:
-                result = GeoPointCloud.from_pandas(self.data[indices])
+                result = GeoPointCloud.from_pandas(self.data[indices], crs=self.crs)
             elif indices.dtype == int or indices.dtype == np.long or indices.dtype == np.int:
                 mask = np.zeros(self.shape[0], dtype=bool)
                 mask[indices] = 1
-                result = GeoPointCloud.from_pandas(self.data[mask])
+                result = GeoPointCloud.from_pandas(self.data[mask], crs=self.crs)
         else:
-            result = GeoPointCloud.from_pandas(self.data.copy())
+            result = GeoPointCloud.from_pandas(self.data.copy(), crs=self.crs)
         result._bounds = self._bounds
         result._principle_components = self._principle_components
         result._cov = self._cov

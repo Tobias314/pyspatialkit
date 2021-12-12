@@ -25,4 +25,6 @@ def points3d_to_image(xyz: np.ndarray, pixel_size: float,
         image[s_indices[:, 0], s_indices[:, 1]] = values
     else:
         ufunc.at(image, (s_indices[:, 0], s_indices[:, 1]), values)
+    image = np.flip(image, 1)
+    image = np.transpose(image, [1,0,2])
     return image, image_origin

@@ -8,4 +8,12 @@ Image arrays always have 3 dimensions. E.g. (height, width, 1) for images with o
 
  x,y or lon,lat order is always used for coordinates never y,x or lat,lon
 
+ Point clouds xyz is an array like type of shape (n,3)
+
 Whenever applicable expected behavior and format should be similar to corresponding features of other common geospatial packages and libraries
+
+Docstrings are written using Google format (https://github.com/google/styleguide/blob/gh-pages/pyguide.md#38-comments-and-docstrings)
+
+For 3d data the third axes (axes at index 2 when zero indexing) / z axis is the up/height axis
+
+Point density is given in point per cubic unit

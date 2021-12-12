@@ -6,7 +6,7 @@ import rasterio as rio
 import sentinelhub
 
 class GeoCrs:
-    def __init__(self, crs: Optional[Union[CRS, 'GeoCrs', sentinelhub.CRS]] = None) -> None:
+    def __init__(self, crs: Optional[Union[CRS, 'GeoCrs', str, sentinelhub.CRS]] = None) -> None:
         if isinstance(crs, CRS):
             self._proj_crs = crs
         elif isinstance(crs, GeoCrs):
@@ -17,6 +17,10 @@ class GeoCrs:
             self._proj_crs = crs.pyproj_crs()
         else:
             self._proj_crs = None
+
+    @property
+    def is_geocentric(self) -> bool:
+        return self._proj_crs.is_geocentric
 
     @classmethod
     def from_dict(cls, dict):
