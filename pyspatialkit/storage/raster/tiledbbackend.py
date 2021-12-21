@@ -115,6 +115,7 @@ class TileDbBackend:
             if self.build_pyramid:
                 self.dirty_regions.append(indexes)
 
+    #TODO: merge bounds at every level to increase performance of batch updates
     def update_pyramid(self) -> None:
         print("UPDATING PYRAMIDS")
         dirty_regions = self.dirty_regions

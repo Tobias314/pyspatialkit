@@ -103,6 +103,7 @@ RUN conda install -n env -c conda-forge "shapely<1.8.0" -y
 RUN conda install -n env -c conda-forge eo-learn -y
 RUN conda install -n env -c conda-forge xarray dask netCDF4 bottleneck -y
 RUN conda install -n env -c conda-forge autopep8 -y
+RUN conda install -n env -c conda-forge pyarrow -y
 # RUN conda install -n env pytorch torchvision torchaudio cudatoolkit=10.2 -c pytorch
 
 ################################## Pip Dependencies ##################################

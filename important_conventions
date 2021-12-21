@@ -16,4 +16,4 @@ Docstrings are written using Google format (https://github.com/google/styleguide
 
 For 3d data the third axes (axes at index 2 when zero indexing) / z axis is the up/height axis
 
-Point density is given in point per cubic unit
+Point density is given as the distance between points
