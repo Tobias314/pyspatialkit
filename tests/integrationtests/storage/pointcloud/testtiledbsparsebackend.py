@@ -36,5 +36,7 @@ class TestTileDbSparseBackend(unittest.TestCase):
     def test_read_write(self):
         self.sparse_backend.write_data(data=self.df)
         self.sparse_backend.update_pyramid()
-        read_df = self.sparse_backend.get_data(bounds=[2,2,2,20,20,20], min_num_points=10)
+        read_df = self.sparse_backend.get_data(bounds=[5,5,5,10,10,10])
+        self.assertEqual(len(read_df), 6)
+        self.assertEqual(read_df['x'].mean(), 7.5)
         print(read_df)
