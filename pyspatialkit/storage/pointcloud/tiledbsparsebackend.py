@@ -24,7 +24,7 @@ class TileDbSparseBackend:
     The TileDB can be thought of as very big sparse array with [x,y,z] indexing
     """
 
-    def __init__(self, bounds: Tuple[float, float, float, float, float, float], directory_path: Path, data_scheme: Dict[str, np.dtype] = {},
+    def __init__(self, bounds: Tuple[float, float, float, float, float, float], directory_path: Path, data_scheme: Dict[str, np.dtype],
                  space_tile_size: Tuple[float, float] = (2, 2, 2), data_tile_capacity=1000,
                  build_pyramid: bool = True, base_point_density=0.01, num_pyramid_layers: int = 15) -> None:
         self.bounds = np.array(bounds)
