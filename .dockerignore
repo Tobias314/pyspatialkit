@@ -1,0 +1,4 @@
+/frontend/spatialkitcesium/node_modules
+*/tmp*
+/testdata
+/.git

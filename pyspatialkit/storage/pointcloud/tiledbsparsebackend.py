@@ -12,6 +12,7 @@ import pandas as pd
 
 from ...utils.numpy import next_bigger_dtype
 from ...utils.bounds import bounds3d_half_surface_area, bounds3d_edge_lengths, bounds3d_volume
+from ...utils.logging import dbg
 
 POINT_PYRAMID_REDUCTION_FACTOR = 5
 AXIS_NAMES = ['x', 'y', 'z']
@@ -26,9 +27,10 @@ class TileDbSparseBackend:
 
     def __init__(self, bounds: Tuple[float, float, float, float, float, float], directory_path: Path, data_scheme: Dict[str, np.dtype],
                  space_tile_size: Tuple[float, float] = (2, 2, 2), data_tile_capacity=1000,
-                 build_pyramid: bool = True, base_point_density=0.01, num_pyramid_layers: int = 15) -> None:
+                 build_pyramid: bool = True, base_point_density=0.01, num_pyramid_layers: Optional[int] = None) -> None:
         self.bounds = np.array(bounds)
-        self.size = self.bounds[3:] - self.bounds[:3]
+        self.extent = self.bounds[3:] - self.bounds[:3]
+        dbg("extent:" + str(self.extent))
         self.space_tile_size = np.array(space_tile_size)
         self.data_tile_capacity = data_tile_capacity
         if not (AXIS_NAMES[0] in data_scheme and AXIS_NAMES[1] in data_scheme and AXIS_NAMES[2] in data_scheme):
@@ -41,16 +43,19 @@ class TileDbSparseBackend:
         self.directory_path = directory_path
         self.build_pyramid = build_pyramid
         if self.build_pyramid:
-            self.num_pyramid_layers = num_pyramid_layers
+            max_pyramid_layers = int(np.log2(self.extent / np.array(self.space_tile_size)).max())
+            if num_pyramid_layers is None:
+                self.num_pyramid_layers = max_pyramid_layers
+            else:
+                self.num_pyramid_layers = min(num_pyramid_layers, max_pyramid_layers)
             self.base_point_density = base_point_density
         else:
             self.num_pyramid_layers = 0
-        self.space_tile_size = space_tile_size
+        self.space_tile_size = np.array(space_tile_size)
         npts_dim1 = self.space_tile_size[0] / base_point_density
         npts_dim2 = self.space_tile_size[1] / base_point_density
         npts_dim3 = self.space_tile_size[2] / base_point_density
-        self.num_points_base_tile_estimate: float = npts_dim1 * \
-            npts_dim2 + npts_dim1 * npts_dim3 + npts_dim2 * npts_dim3
+        self.num_points_base_tile_estimate: float = npts_dim1 * npts_dim2 + npts_dim1 * npts_dim3 + npts_dim2 * npts_dim3
         self.levels: List[tiledb.Array] = [
             None, ] * (self.num_pyramid_layers + 1)
         tiledb.group_create(str(self.directory_path))
@@ -61,11 +66,14 @@ class TileDbSparseBackend:
         for i, layer in enumerate(self.levels):
             path = str(self.directory_path / ("level_" + str(i)))
             if not Path(path).exists():
-                dim1 = tiledb.Dim(name=AXIS_NAMES[0], domain=(self.bounds[0], self.bounds[3]), tile=self.space_tile_size[0] * 2**i,
+                dbg("size" + str(self.space_tile_size * 2**i))
+                tile_extent = self.space_tile_size[0] * 2**i
+                tile_extent = np.minimum(tile_extent, self.extent)
+                dim1 = tiledb.Dim(name=AXIS_NAMES[0], domain=(self.bounds[0], self.bounds[3]), tile=tile_extent[0],
                                   dtype=self.data_scheme[AXIS_NAMES[0]])
-                dim2 = tiledb.Dim(name=AXIS_NAMES[1], domain=(self.bounds[1], self.bounds[4]), tile=self.space_tile_size[1] * 2**i,
+                dim2 = tiledb.Dim(name=AXIS_NAMES[1], domain=(self.bounds[1], self.bounds[4]), tile=tile_extent[1],
                                   dtype=self.data_scheme[AXIS_NAMES[1]])
-                dim3 = tiledb.Dim(name=AXIS_NAMES[2], domain=(self.bounds[2], self.bounds[5]), tile=self.space_tile_size[2] * 2**i,
+                dim3 = tiledb.Dim(name=AXIS_NAMES[2], domain=(self.bounds[2], self.bounds[5]), tile=tile_extent[2],
                                   dtype=self.data_scheme[AXIS_NAMES[2]])
                 dom = tiledb.Domain(dim1, dim2, dim3)
                 schema = tiledb.ArraySchema(

@@ -1,12 +1,12 @@
 from pathlib import Path
 import os
 import json
-from typing import Optional, Tuple
+from typing import Optional, Tuple, Dict
 import shutil
 
 import numpy as np
 
-from .geolayer import GeoLayer
+from .geolayer import GeoLayer, GeoLayerOwner
 
 from ..utils.logging import logger
 from ..utils.fileio import force_delete_directory
@@ -14,19 +14,21 @@ from .raster.georasterlayer import GeoRasterLayer
 from ..crs.geocrs import GeoCrs
 from ..globals import DEFAULT_CRS
 
-class GeoStorage:
+class GeoStorage(GeoLayerOwner):
 
     def __init__(self, directory_path):
         self.directory_path = Path(directory_path)
         self.directory_path.mkdir(parents=True, exist_ok=True)
-        self.layers = {}
+        self.layers: Dict[str, GeoLayer] = {}
         if os.path.exists(self.directory_path / ".config"):
             with open(self.directory_path / ".config") as config_file:
                 data = config_file.read()
                 data = json.loads(data)
                 for x in data["layers"]:
                     layer_dir = self.directory_path / x["name"] / ""
-                    self.layers[os.path.basename(layer_dir)] = globals()[x["type"]](layer_dir)
+                    layer_name = os.path.basename(layer_dir)
+                    self.layers[layer_name] = globals()[x["type"]](layer_dir)
+                    self.layers[layer_name].register_owner(self)
 
     @property
     def name(self):
@@ -56,10 +58,7 @@ class GeoStorage:
         if layer_name not in self.layers:
             logger().warning("A layer with this name does not exist. No layer will be deleted")
             return False
-        dir_path = self.layers[layer_name].folder_path
-        del self.layers[layer_name]
-        force_delete_directory(dir_path)
-        return True
+        self.layers[layer_name].delete_permanently()
 
     def _add_layer(self, layer_name: str, layer_type: type, *args, **kwargs) -> GeoLayer:
         if layer_name in self.layers:
@@ -79,4 +78,7 @@ class GeoStorage:
     def plot_cesium(self):
         from ..visualization.cesium.backend.server import start_server #We do it here to avoid cyclic dependencies
         start_server(self)
+
+    def on_child_delete(self, child: GeoLayer):
+        del self.layers[child.name]
 

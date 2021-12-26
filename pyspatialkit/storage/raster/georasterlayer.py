@@ -128,7 +128,7 @@ class GeoRasterLayer(GeoLayer):
             output_layer.writer_raster_data(georaster)
         output_layer.commit_pyramid_update_transaction()
 
-    def delete(self):
+    def _delete_permanently(self):
         self.backend.delete_permanently()
 
     @property

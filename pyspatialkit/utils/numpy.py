@@ -1,3 +1,5 @@
+import sys
+
 import numpy as np
 
 
@@ -15,3 +17,17 @@ def next_bigger_dtype(dtype: np.dtype) -> np.dtype:
             return dtype
     else:
         return dtype
+
+def to_endianess(arr: np.ndarray, to_endianess:str='<', inplace=True)-> np.ndarray:
+    arr_endianess = arr.dtype.byteorder
+    if arr_endianess=='=':
+        if sys.byteorder=='little':
+            arr_endianess = '<'
+        else:
+            arr_endianess = '>'
+    if arr_endianess == '|' or (arr_endianess==to_endianess):
+        if not inplace:
+            return arr.copy()
+    else:
+        arr = arr.byteswap(inplace=inplace)
+    return arr
