@@ -5,7 +5,6 @@ from typing import Type, TypeVar, Tuple, Sequence
 import numpy as np
 import open3d as o3d
 from shapely.geometry import Polygon
-from . import open3d_tutorial as o3dtut
 import trimesh
 from trimesh.creation import triangulate_polygon
 
@@ -128,6 +127,7 @@ class GeoMesh:
         return self.tmesh.vertex_normals
 
     def _invalidate_caches(self):
+        pass
 
     @classmethod
     def get_box_mesh(cls: Type[T]) -> T:

@@ -3,6 +3,7 @@ from pathlib import Path
 from typing import Optional, Tuple, Callable, Dict, List
 import json
 from collections.abc import Iterable
+import shutil
 
 import time
 import numpy as np
@@ -10,12 +11,12 @@ from pyproj.enums import TransformDirection
 from skimage.transform import resize
 from matplotlib import pyplot as plt
 
-from crs.geocrstransformer import GeoCrsTransformer
 
 from ...globals import DEFAULT_CRS
 from ..geolayer import GeoLayer
 from ...crs.geocrs import GeoCrs, NoneCRS
 from ...crs.geocrstransformer import TransformDirection
+from ...crs.geocrstransformer import GeoCrsTransformer
 from ...crs.utils import crs_bounds
 from .tiledbsparsebackend import TileDbSparseBackend
 from ...spacedescriptors.georect import GeoRect
@@ -81,9 +82,9 @@ class GeoPointCloudLayer(GeoLayer):
                                                 space_tile_size=self.backend_space_tile_size,
                                                 build_pyramid=self.build_pyramid)
 
-     def get_data_for_geobox3d(self, geobox: GeoBox3d, attributes: Optional[List[str]] = None) -> GeoPointCloud:
+    def get_data_for_geobox3d(self, geobox: GeoBox3d, attributes: Optional[List[str]] = None) -> GeoPointCloud:
         if geobox.crs == self.crs:
-             data = self.backend.get_data([*geobox.min, *geobox.max], attributes=attributes)
+                data = self.backend.get_data([*geobox.min, *geobox.max], attributes=attributes)
         else:
             min_coords = geobox.min
             max_coords = geobox.max
@@ -94,7 +95,7 @@ class GeoPointCloudLayer(GeoLayer):
             data['x'], data['y'], data['z'] = transformer.transform(data['x'], data['y'], data['z'], direction=TransformDirection.INVERSE)
         return GeoPointCloud.from_pandas(data, crs=geobox.crs, rgb_max=self.rgb_max)
 
-    def writer_data(self, geopointcloud: GeoPointCloud):
+    def write_data(self, geopointcloud: GeoPointCloud):
         if geopointcloud.crs != self.crs:
             geopointcloud.to_crs(self.crs)
         self.backend.write_data(geopointcloud.data)
@@ -108,7 +109,7 @@ class GeoPointCloudLayer(GeoLayer):
                 self.backend.update_pyramid()
             self._eager_pyramid_update = True
 
-    def delete(self):
+    def _delete_permanently(self):
         self.backend.delete_permanently()
 
     @property

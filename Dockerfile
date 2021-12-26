@@ -82,6 +82,7 @@ ENV NVIDIA_DRIVER_CAPABILITIES graphics,utility,compute
 # Conda
 RUN conda config --add channels conda-forge
 RUN conda config --set channel_priority strict
+RUN conda install -n env -c open3d-admin -c conda-forge open3d -y
 RUN conda install -n env geopandas -y
 RUN conda install -n env tiledb-py -y
 RUN conda install -n env rasterio -y
@@ -95,7 +96,7 @@ RUN conda install -n env -c conda-forge fastapi uvicorn -y
 RUN conda install -n env -c conda-forge genshi -y
 RUN conda install -n env -c conda-forge opencv -y
 RUN conda install -n env -c conda-forge eo-learn -y
-RUN conda install -n env -c open3d-admin -c conda-forge open3d -y
+RUN conda install -n env -c conda-forge pyarrow -y
 RUN conda install -n env -c conda-forge pdal -y
 RUN conda install -n env -c conda-forge python-pdal -y
 RUN conda install -n env -c conda-forge sentinelhub -y
@@ -103,7 +104,7 @@ RUN conda install -n env -c conda-forge "shapely<1.8.0" -y
 RUN conda install -n env -c conda-forge eo-learn -y
 RUN conda install -n env -c conda-forge xarray dask netCDF4 bottleneck -y
 RUN conda install -n env -c conda-forge autopep8 -y
-RUN conda install -n env -c conda-forge pyarrow -y
+RUN conda install -n env -c conda-forge trimesh -y
 # RUN conda install -n env pytorch torchvision torchaudio cudatoolkit=10.2 -c pytorch
 
 ################################## Pip Dependencies ##################################

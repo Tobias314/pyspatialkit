@@ -2,10 +2,6 @@ import json
 from typing import Union, Tuple, List, Optional, Type, TypeVar
 from pathlib import Path
 
-from crs.geocrs import NoneCRS
-from dataobjects.georaster import GeoRaster
-from spacedescriptors.georect import GeoRect
-
 T = TypeVar('T', bound='TrivialClass')
 
 import open3d as o3d
@@ -20,9 +16,16 @@ from . import geomesh
 from ..processing.pointcloud.utils import points3d_to_image
 from ..crs.geocrs import GeoCrs, NoneCRS
 from ..crs.geocrstransformer import GeoCrsTransformer
+from ..crs.geocrs import NoneCRS
+from ..dataobjects.georaster import GeoRaster
+from ..spacedescriptors.georect import GeoRect
+from ..spacedescriptors.geobox3d import GeoBox3d
+from ..spacedescriptors.tiles3dboundingvolume import Tiles3dBoundingVolume
+from .tiles3d.tiles3dcontentobject import Tiles3dContentObject, Tiles3dContentType
+from ..processing.pointcloud.pointcloudio import geopointcloud_to_3dtiles_pnts
 
 
-class GeoPointCloud:
+class GeoPointCloud(Tiles3dContentObject):
 
     def __init__(self):
         self.data = pd.DataFrame(columns=['x', 'y', 'z'])
@@ -202,8 +205,17 @@ class GeoPointCloud:
         assert rgb.shape == self.rgb.shape
         self.data[['r', 'g', 'b']] = rgb
 
+    @property
     def has_normals(self) -> bool:
-        return 'n_x' in self.data and 'n_y' in self.data and 'n_z' in self.data
+        if self._has_normals is None:
+            self._has_normals = 'n_x' in self.data and 'n_y' in self.data and 'n_z' in self.data
+        return self._has_normals
+
+    @property
+    def has_rgb(self) -> bool:
+        if self._has_rgb is None:
+            self._has_rgb = 'r' in self.data and 'g' in self.data and 'b' in self.data
+        return self._has_rgb
 
     @property
     def normals_xyz(self) -> Optional[pd.DataFrame]:
@@ -241,6 +253,8 @@ class GeoPointCloud:
         self._cov = None
         self._aab_dims = None
         self._center = None
+        self._has_rgb: Optional[bool] = None
+        self._has_normals: Optional[bool] = None
         if 'n_x' in self.data:
             del self.data['n_x']
         if 'n_y' in self.data:
@@ -388,6 +402,11 @@ class GeoPointCloud:
     def __getitem__(self, item):
         if isinstance(item, np.ndarray):
             return self.copy(indices=item)
+        elif isinstance(item, str):
+            return self.attribute(item)
+
+    def attribute(self, attribute_name: str) -> pd.DataFrame:
+        return self.data[attribute_name]
 
     def copy(self, indices: Union[np.ndarray, None] = None):
         if indices is not None:
@@ -407,11 +426,11 @@ class GeoPointCloud:
         result.rgb_max = self.rgb_max
         return result
 
-    def column_descriptor(self):
+    def data_scheme(self):
         return dict([(name, column.dtype) for name, column in self.data.items()])
 
     def extend(self, other: 'GeoPointCloud', keep_other=True):
-        if self.column_descriptor() != other.column_descriptor():
+        if self.data_scheme() != other.data_scheme():
             raise ValueError("The point clouds have different attribute names or types")
         self.data = pd.concat([self.data, other.data])
         if not keep_other:
@@ -551,3 +570,15 @@ class GeoPointCloud:
     def plot_o3dj(self, categorical_colors_attribute: Optional[str] = None, color_map=cm.tab20, *args, **kwargs):
         from open3d.web_visualizer import draw as draw_jupyter
         self._plot_o3d(draw_jupyter, categorical_colors_attribute, color_map, *args, **kwargs)
+
+    def content_type_tile3d(self) -> Tiles3dContentType:
+        return Tiles3dContentType.POINT_CLOUD
+
+    @property
+    def bounding_volume_tiles3d(self) -> Tiles3dBoundingVolume:
+        return GeoBox3d.from_bounds(self.bounds)
+
+    def to_bytes_tiles3d(self, rgb:bool = True, normals: bool = True) -> bytes:
+        rgb = rgb and self.has_rgb
+        normals = normals and self.has_normals
+        return geopointcloud_to_3dtiles_pnts(self, rgb=rgb, normals=normals)
