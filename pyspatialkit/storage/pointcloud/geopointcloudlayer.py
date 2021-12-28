@@ -23,7 +23,7 @@ from ...spacedescriptors.georect import GeoRect
 from ...dataobjects.georaster import GeoRaster
 from ...utils.datascheme import datascheme_to_str_dict, datascheme_from_str_dict
 from ...spacedescriptors.geobox3d import GeoBox3d
-from ...dataobjects.geopointcloud import GeoPointCloud
+from ...dataobjects.geopointcloud import GeoPointCloud, GeoPointCloudReadable, GeoPointCloudWritable
 
 BACKEND_DIRECTORY_NAME = "backend"
 
@@ -32,34 +32,34 @@ DEFAULT_MAX_ELEVATION = 100000
 DEFAULT_POINT_PER_METER_1D = 300
 
 
-class GeoPointCloudLayer(GeoLayer):
+class GeoPointCloudLayer(GeoLayer, GeoPointCloudReadable, GeoPointCloudWritable):
 
     def initialize(self, data_scheme: Dict[str, np.dtype], crs: GeoCrs = DEFAULT_CRS, bounds: Optional[Tuple[float, float, float, float, float, float]] = None,
                    point_density=0.01, build_pyramid: bool = True, rgb_max:float = 1):
-        self.data_scheme = data_scheme
+        self._data_scheme = data_scheme
         self._crs = crs
         if bounds is None:
             bounds = crs_bounds(crs)
             bounds = (bounds[0], bounds[1], DEFAULT_MIN_ELEVATION,
                       bounds[2], bounds[3], DEFAULT_MAX_ELEVATION)
-        self.bounds = bounds
+        self._bounds = bounds
         self.build_pyramid = build_pyramid
         self._eager_pyramid_update = True
         self.point_density = point_density
         tmp = DEFAULT_POINT_PER_METER_1D / self.point_density
         self.backend_space_tile_size = (tmp, tmp, tmp)
         self.rgb_max = rgb_max
-        self.backend = TileDbSparseBackend(bounds=self.bounds, directory_path=self.directory_path / BACKEND_DIRECTORY_NAME,
-                                           data_scheme=self.data_scheme,
+        self.backend = TileDbSparseBackend(bounds=self._bounds, directory_path=self.directory_path / BACKEND_DIRECTORY_NAME,
+                                           data_scheme=self._data_scheme,
                                            space_tile_size=self.backend_space_tile_size,
                                            build_pyramid=self.build_pyramid)
 
     def persist_data(self, dir_path: Path):
         config = {}
         config['crs'] = self.crs.to_dict()
-        config['bounds'] = self.bounds
+        config['bounds'] = self._bounds
         config['build_pyramid'] = self.build_pyramid
-        config['data_schema'] = datascheme_to_str_dict(self.data_scheme)
+        config['data_schema'] = datascheme_to_str_dict(self._data_scheme)
         config['point_density'] = self.point_density
         config['backend_space_tile_size'] = self.backend_space_tile_size
         config['rgb_max'] = self.rgb_max
@@ -71,14 +71,14 @@ class GeoPointCloudLayer(GeoLayer):
             config = json_file.read()
             config = json.loads(config)
             self._crs = GeoCrs.from_dict(config['crs'])
-            self.bounds = config['bounds']
+            self._bounds = config['bounds']
             self.build_pyramid = config['build_pyramid']
-            self.data_scheme = datascheme_from_str_dict(config['data_schema'])
+            self._data_scheme = datascheme_from_str_dict(config['data_schema'])
             self.point_density = config['point_density']
             self.backend_space_tile_size = config['backend_space_tile_size']
             self.rgb_max = config['rgb_max']
-            self.backend = TileDbSparseBackend(bounds=self.bounds, directory_path=self.directory_path / BACKEND_DIRECTORY_NAME,
-                                                data_scheme=self.data_scheme,
+            self.backend = TileDbSparseBackend(bounds=self._bounds, directory_path=self.directory_path / BACKEND_DIRECTORY_NAME,
+                                                data_scheme=self._data_scheme,
                                                 space_tile_size=self.backend_space_tile_size,
                                                 build_pyramid=self.build_pyramid)
 
@@ -96,7 +96,7 @@ class GeoPointCloudLayer(GeoLayer):
         return GeoPointCloud.from_pandas(data, crs=geobox.crs, rgb_max=self.rgb_max)
 
     def write_data(self, geopointcloud: GeoPointCloud):
-        if geopointcloud.crs != self.crs:
+        if geopointcloud._crs != self.crs:
             geopointcloud.to_crs(self.crs)
         self.backend.write_data(geopointcloud.data)
 
@@ -119,3 +119,11 @@ class GeoPointCloudLayer(GeoLayer):
     @property
     def crs(self):
         return self._crs
+
+    @property
+    def bounds(self):
+        return self._bounds
+
+    @property
+    def data_scheme(self):
+        return self._data_scheme
