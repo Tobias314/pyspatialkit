@@ -1,17 +1,19 @@
-from typing import Optional, List
+from typing import Optional, List, TYPE_CHECKING
 import numpy as np
 import sys
 import json
 
-from dataobjects.geopointcloud import GeoPointCloud
 from ...utils.numpy import to_endianess
+print("TYPECHECKING" + str(TYPE_CHECKING))
+if TYPE_CHECKING:
+    from ...dataobjects.geopointcloud import GeoPointCloud
 
 PNTS_VERSION = 1
 PNTS_VERSION_HEADER_FIELD = to_endianess(np.array([PNTS_VERSION], dtype=np.uint32), '<').tobytes()
 
 
 # TODO implement full 3dtiles pnts specification (batch_ids, batch_table ...)
-def geopointcloud_to_3dtiles_pnts(pcl: GeoPointCloud, rgb: bool = True, normals: bool = False) -> bytes:
+def geopointcloud_to_3dtiles_pnts(pcl: 'GeoPointCloud', rgb: bool = True, normals: bool = False) -> bytes:
     magic = b'pnts'
     version = PNTS_VERSION_HEADER_FIELD
     batch_table_json_byte_length = np.array([0], dtype=np.uint32)

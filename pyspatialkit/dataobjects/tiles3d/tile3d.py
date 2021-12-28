@@ -1,14 +1,14 @@
 from typing import TYPE_CHECKING, Callable, NamedTuple, Optional, Tuple, List, Dict, Union
 from abc import ABC, abstractmethod
 from enum import Enum
-from dataobjects.tiles3d.tiles3dcontentobject import Tiles3dContentObject, Tiles3dContentType, TILES3D_CONTENT_TYPE_TO_FILE_ENDING
 
-from ...dataobjects.tiles3d.tileset3d import Tileset3d
+from ...spacedescriptors.tiles3dboundingvolume import Tiles3dBoundingVolume
+from ...dataobjects.tiles3d.tiles3dcontentobject import Tiles3dContentObject, Tiles3dContentType, TILES3D_CONTENT_TYPE_TO_FILE_ENDING
 from ...spacedescriptors.geobox3d import GeoBox3d
 
 # only import type for type checking, do not import during runtime
 if TYPE_CHECKING:
-    from .tileset3d import Tileset3d
+    from . import tileset3d
 
 
 class RefinementType(Enum):
@@ -17,22 +17,25 @@ class RefinementType(Enum):
 
 
 class Tile3d(ABC):
-    def __init__(self, tileset: Tileset3d):
+    def __init__(self, tileset: 'tileset3d.Tileset3d'):
+        self._reset_cached()
         self.tileset = tileset
-        self._bounding_volume: Optional[GeoBox3d] = None
+
+    def _reset_cached(self):
+        self._bounding_volume: Optional[Tiles3dBoundingVolume] = None
         self._geometric_error: Optional[float] = None
         self._refine: Optional[RefinementType] = None
         self._content: Optional[Tiles3dContentObject] = None
         self._content_type: Optional[Tiles3dContentType] = None
+        self._content_bounding_volume: Optional[Tiles3dBoundingVolume] = None
         self._children: Optional[List[Tile3d]] = None
         self._identifier: Optional[object] = None
         self._cost: Optional[float] = None
 
-
 ###Hooks which sub classes have to override###
 
     @abstractmethod
-    def get_bounding_volume(self) -> GeoBox3d:
+    def get_bounding_volume(self) -> Tiles3dBoundingVolume:
         raise NotImplementedError
 
     @abstractmethod
@@ -56,15 +59,18 @@ class Tile3d(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def get_identifier(self) -> float:
+    def get_identifier(self) -> object:
         raise NotImplementedError
 
     def get_cost(self) -> float:
         return 1
 
+    def get_content_bounding_volume(self) -> Tiles3dBoundingVolume:
+        return self.content.bounding_volume_tiles3d
+
 ###Properties###
     @property
-    def bounding_volume(self):
+    def bounding_volume(self) -> Tiles3dBoundingVolume:
         if self._bounding_volume is None:
             self._bounding_volume = self.get_bounding_volume()
         return self._bounding_volume
@@ -85,7 +91,7 @@ class Tile3d(ABC):
     def content(self) -> Tiles3dContentObject:
         if self._content is None:
             self._content = self.get_content()
-        if self.content_type != self._content.content_type_tile3d:
+        if self._content is not None and self.content_type != self._content.content_type_tile3d:
             raise TypeError("The type of the content object does not match the content type set for this tile!")
         return self._content
 
@@ -94,6 +100,12 @@ class Tile3d(ABC):
         if self._content_type is None:
             self._content_type = self.get_content_type()
         return self._content_type
+
+    @property
+    def content_bounding_volume(self) -> Tiles3dContentType:
+        if self._content_bounding_volume is None:
+            self._content_bounding_volume = self.get_content_bounding_volume()
+        return self._content_bounding_volume
 
     @property
     def children(self) -> List['Tile3d']:
@@ -115,10 +127,10 @@ class Tile3d(ABC):
 
 ###Methods###
 
+    #TODO fix cost/max_cost calculation
     def materialize(self, tile_uri_generator: Callable[['Tile3d'], str],
                      current_depth: int, accumulated_cost: float,
                      tile_content_uri_generator: Optional[Callable[['Tile3d'], str]] = None,
-                     
                      max_depth: Optional[int] = None, max_cost: Optional[float] = None,
                      callback: Optional[Callable[['Tile3d'], None]] = None) -> Tuple[Dict[str, Union[str, float, int, Dict, List, Tuple]], List['Tile3d']]:
         tile_uri = tile_uri_generator(self)
@@ -137,7 +149,8 @@ class Tile3d(ABC):
         end_points = []
         children_dicts = []
         for c in self.children:
-            child_dict, e_pts = c.materialize(current_depth=current_depth, accumulated_cost=accumulated_cost, max_depth=max_depth,
+            child_dict, e_pts = c.materialize(tile_uri_generator=tile_uri_generator, tile_content_uri_generator=tile_content_uri_generator,
+                                               current_depth=current_depth, accumulated_cost=accumulated_cost, max_depth=max_depth,
                                                max_cost=max_cost, callback=callback)
             children_dicts.append(child_dict)
             end_points += e_pts
@@ -147,15 +160,14 @@ class Tile3d(ABC):
     def _generate_tile_dict(self, tile_content_uri: str,
                              children: List[Dict]) -> Dict[str, Union[str, float, int, Dict, List, Tuple]]:
         res = {
-            'boundingVolume': self.bounding_volume.to_tiles3d_dict(),
+            'boundingVolume': self.bounding_volume.to_tiles3d_bounding_volume_dict(),
             'geometricError':self.geometric_error,
             'refine':self.refine.name,
-            'content': {
-                        'boundingVolume': self.content.bounding_volume_tiles3d,
-                        'uri': tile_content_uri
-                        },
-            'children': children
+            'children': children,
         }
+        if self.content is not None:
+            res['content'] = {'boundingVolume': self.content_bounding_volume.to_tiles3d_bounding_volume_dict(),
+                              'uri': tile_content_uri}
         return res
 
     def _generate_link_proxy_tile_dict(self, tile_uri: str) -> Dict[str, Union[str, float, int, Dict, List, Tuple]]:

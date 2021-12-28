@@ -1,14 +1,39 @@
-from typing import Union, Dict, Optional, TYPE_CHECKING, Tuple, List, Callable
+from typing import NamedTuple, Union, Dict, Optional, TYPE_CHECKING, Tuple, List, Callable
 from abc import ABC, abstractmethod
+from pathlib import Path
+import json
+import os
 
-from .tile3d import Tile3d
+import numpy as np
 
-TILES3D_VERSION = 1.0
+from ....spacedescriptors.geobox3d import GeoBox3d
+from ..tileset3d import Tileset3d
+from .geopointcloudtile3d import GeoPointCloudTile3d, GeoPointCloudTileIdentifier
+from ...geopointcloud import GeoPointCloud
+from ....crs.geocrs import GeoCrs
+from ....crs.geocrstransformer import GeoCrsTransformer
+from ..tiles3dcontentobject import TILES3D_CONTENT_TYPE_TO_FILE_ENDING
 
-class Tileset3d(ABC):
+class GeoPointCloudTileset3d(Tileset3d):
 
-    def __init__(self):
-        self._root: Optional[Tile3d] = None
+    def __init__(self, point_cloud: GeoPointCloud, tile_size: Tuple[float, float, float],
+                  num_tiles_per_level_edge: Tuple[int,int,int] = [2,2,2] ):
+        super().__init__()
+        self.point_cloud = point_cloud
+        self.tile_size = np.array(tile_size)
+        self.num_tiles_per_level_edge = num_tiles_per_level_edge
+        self.to_egps4978_transformer = GeoCrsTransformer(self.point_cloud._crs, GeoCrs.from_epsg(4978))
+        if not self.point_cloud._crs.is_geocentric:
+            self.to_epsg4979_transformer = GeoCrsTransformer(self.point_cloud._crs, GeoCrs.from_epsg(4997))
+        self.min = self.point_cloud.bounds[:3]
+        self.extent = self.point_cloud.extent
+        self.max = self.point_cloud.bounds[3:]
+        self.max_level = int(np.max(np.ceil(np.log(self.extent / self.tile_size) / np.log(self.num_tiles_per_level_edge))))
+
+    def get_tile_size_for_level(self, level: int)-> np.ndarray:
+        tile_size = self.tile_size * 2**(level)
+        tile_size = np.minimum(tile_size, self.extent)
+        return tile_size
 
     @property
     def tileset_version(self) -> Union[float, str]:
@@ -22,41 +47,43 @@ class Tileset3d(ABC):
     def geometric_error(self) -> float:
         return 0
 
-    @property
-    def root(self) -> Tile3d:
-        if self._root is None:
-            self._root = self.get_root()
-        return self._root
+    def get_root(self) -> GeoPointCloudTile3d:
+        return self.get_tile_by_identifier(GeoPointCloudTileIdentifier(self.max_level,(0,0,0)))
 
-    @abstractmethod
-    def get_root(self) -> Tile3d:
-        raise NotImplementedError
+    def get_bbox_from_identifier(self,identifier: GeoPointCloudTileIdentifier)->GeoBox3d:
+        tile_size = self.get_tile_size_for_level(identifier.level)
+        min_pt = self.min + tile_size * np.array(identifier.tile_indices)
+        bbox = GeoBox3d(min_pt, min_pt+tile_size, crs=self.point_cloud._crs)
+        return bbox
 
-    def get_tile_by_identifier(self,identifier: object)-> Tile3d:
-        raise NotImplementedError
+    def get_tile_by_identifier(self,identifier: GeoPointCloudTileIdentifier)-> GeoPointCloudTile3d:
+        return GeoPointCloudTile3d(self, identifier=identifier)
 
-    def materialize(self, tile_uri_generator: Callable[['Tile3d'], str],
-                     tile_content_uri_generator: Optional[Callable[['Tile3d'], str]] = None,
-                     root_tile: Optional[Tile3d] = None,
-                     max_depth: Optional[int] = None, max_cost: Optional[float] = None,
-                     callback: Optional[Callable[['Tile3d'], None]] = None) -> Tuple[Dict[str, Union[str, float, int, Dict, List, Tuple]], List['Tile3d']]:
-        
-        if root_tile is None:
-            root_tile = self.root
-            geometric_error = self.geometric_error
-        else:
-            geometric_error = root_tile.geometric_error
-        tile_dict = self.root.materialize(tile_uri_generator=tile_uri_generator, tile_content_uri_generator=tile_content_uri_generator,
-                                           current_depth=0, accumulated_cost=0, max_depth=max_depth, max_cost=max_cost,
-                                           callback=callback)
-        return self._generate_tileset_dict(tileset_version=self.tileset_version, geometric_error=geometric_error, root=tile_dict)
-
-     def _generate_tileset_dict(self, tileset_version: str, geometric_error: float,
-                                 root: Dict, properties: Dict = {}) -> Dict[str, Union[str, float, int, Dict, List, Tuple]]:
-        res = {
-            'asset': {'version':TILES3D_VERSION, 'tilesetVersion': tileset_version},
-            'properties': properties,
-            'geometricError': geometric_error,
-            'root': root
-        }
-        return res
+    
+    def to_static_directory(self, directory_path: Union[str, Path], max_per_file_depth:Optional[int]=None,
+                             max_per_file_cost:Optional[int]=None):
+        directory_path = Path(directory_path)
+        if not directory_path.is_dir():
+            directory_path.mkdir(parents=True)
+        def uri_generator(tile: GeoPointCloudTile3d) -> str:
+            level = tile.identifier.level
+            indices = tile.identifier.tile_indices
+            return str(directory_path / "{}_{}_{}_{}.json".format(level, indices[0], indices[1], indices[2]))
+        def content_uri_generator(tile: GeoPointCloudTile3d) -> str:
+            tile_uri = uri_generator(tile)
+            return tile_uri + '_content' + TILES3D_CONTENT_TYPE_TO_FILE_ENDING[tile.content_type.name]
+        def content_to_file(tile: GeoPointCloudTile3d):
+            serialized_bytes = tile.content.to_bytes_tiles3d()
+            file_path = content_uri_generator(tile)
+            with open(file_path, "wb") as f:
+                f.write(serialized_bytes)
+        backlog = []
+        backlog.append(self.root)
+        while backlog:
+            root_tile = backlog.pop()
+            json_dict, new_roots = self.materialize(tile_uri_generator=uri_generator, tile_content_uri_generator=content_uri_generator,
+                                                     root_tile=root_tile, max_depth=max_per_file_depth,
+                                                     max_cost=max_per_file_cost, callback=content_to_file)
+            with open(uri_generator(root_tile), 'w') as f:
+                json.dump(json_dict, f)
+            backlog += new_roots

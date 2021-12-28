@@ -1,6 +1,7 @@
 import json
-from typing import Union, Tuple, List, Optional, Type, TypeVar
+from typing import Union, Tuple, List, Optional, Type, TypeVar, Dict
 from pathlib import Path
+from abc import ABC, abstractmethod
 
 T = TypeVar('T', bound='TrivialClass')
 
@@ -25,12 +26,41 @@ from .tiles3d.tiles3dcontentobject import Tiles3dContentObject, Tiles3dContentTy
 from ..processing.pointcloud.pointcloudio import geopointcloud_to_3dtiles_pnts
 
 
-class GeoPointCloud(Tiles3dContentObject):
+class GeoPointCloudReadable(ABC):
+
+    @property
+    @abstractmethod
+    def crs(self)-> GeoCrs:
+        raise NotImplementedError
+
+    @property
+    @abstractmethod
+    def bounds(self)-> GeoCrs:
+        raise NotImplementedError
+
+    @property
+    @abstractmethod
+    def data_scheme(self)-> Dict:
+        raise NotImplementedError
+
+    @abstractmethod
+    def get_data_for_geobox3d(self, geobox: GeoBox3d, attributes: Optional[List[str]] = None)-> 'GeoPointCloudReadable':
+        raise NotImplementedError
+
+
+class GeoPointCloudWritable(ABC):
+
+    @abstractmethod
+    def write_data(self, geopointcloud: GeoPointCloudReadable):
+        raise NotImplementedError
+
+
+class GeoPointCloud(Tiles3dContentObject, GeoPointCloudReadable, GeoPointCloudWritable):
 
     def __init__(self):
         self.data = pd.DataFrame(columns=['x', 'y', 'z'])
         self.rgb_max = 1.0
-        self.crs = NoneCRS
+        self._crs = NoneCRS
         self._reset_cached()
 
     @classmethod
@@ -38,7 +68,7 @@ class GeoPointCloud(Tiles3dContentObject):
                           normals_xyz: Union[np.ndarray, None] = None, curvature: Union[np.ndarray, None] = None,
                           data_axis_is_first=False):
         cloud = GeoPointCloud()
-        cloud.crs = crs
+        cloud._crs = crs
         if data_axis_is_first:
             xyz = xyz.transpose()
         cloud.data['x'] = xyz[:, 0]
@@ -68,7 +98,7 @@ class GeoPointCloud(Tiles3dContentObject):
             raise KeyError("DataFrame needs at least columns x,y,z.")
         cloud = GeoPointCloud()
         cloud.data = data_frame
-        cloud.crs = crs
+        cloud._crs = crs
         cloud.rgb_max = rgb_max
         return cloud
 
@@ -152,6 +182,18 @@ class GeoPointCloud(Tiles3dContentObject):
             return result
         result.data = pd.concat([other.data for other in others])
         return result
+
+    @property
+    def crs(self)-> GeoCrs:
+        return self._crs
+
+    def get_data_for_geobox3d(self, geobox: GeoBox3d, attributes: Optional[List[str]] = None)-> 'GeoPointCloudReadable':
+        mi=geobox.min
+        ma=geobox.max
+        mask = (self.x > mi[0]) & (self.x < ma[0])
+        mask = mask & (self.y > mi[1]) & (self.y < ma[1])
+        mask = mask & (self.z > mi[2]) & (self.z < ma[2])
+        return self[mask.to_numpy()]
 
     def split_by_class(self, class_column: str) -> List['GeoPointCloud']:
         return [GeoPointCloud.from_pandas(x, rgb_max=self.rgb_max) for _, x in
@@ -249,6 +291,7 @@ class GeoPointCloud(Tiles3dContentObject):
 
     def _reset_cached(self):
         self._bounds = None
+        self._extent = None
         self._principle_components = None
         self._cov = None
         self._aab_dims = None
@@ -269,10 +312,10 @@ class GeoPointCloud(Tiles3dContentObject):
 
     def to_crs(self, new_crs: GeoCrs, crs_transformer: Optional[GeoCrsTransformer] = None, inplace=True) -> 'GeoPointCloud':
         if crs_transformer is None:
-            crs_transformer = GeoCrsTransformer(self.crs, new_crs)
+            crs_transformer = GeoCrsTransformer(self._crs, new_crs)
         if inplace:
             self.xyz = np.stack(crs_transformer.transform(self.x, self.y, self.z), axis=1)
-            self.crs = new_crs
+            self._crs = new_crs
             self._reset_cached()
             return self
         else:
@@ -351,7 +394,7 @@ class GeoPointCloud(Tiles3dContentObject):
         if return_raw_output:
             return pipeline.arrays, pipeline.metadata, pipeline.log
         else:
-            return [GeoPointCloud.from_structured_array(a, crs=self.crs) for a in pipeline.arrays]
+            return [GeoPointCloud.from_structured_array(a, crs=self._crs) for a in pipeline.arrays]
 
     def filter_by_voxel_grid(self, voxel_grid: 'GeoVoxelGrid') -> 'GeoPointCloud':
         s_indices = ((self.xyz.to_numpy() - voxel_grid.origin) // voxel_grid.voxel_size).astype(int)
@@ -379,11 +422,11 @@ class GeoPointCloud(Tiles3dContentObject):
 
     def to_georaster(self, pixel_size: float, value_field: Optional[str] = None, empty_value=0,
                      ufunc: Optional[np.ufunc] = None) -> GeoRaster:
-        if self.crs.is_geocentric:
+        if self._crs.is_geocentric:
             raise ValueError("Point clouds in geocentric coordinates cannot projected down along the z-axis to flatten them to earth surface")
         img, origin = self.to_image(pixel_size=pixel_size, up_axis=2, value_field=value_field, empty_value=empty_value,
                                      ufunc=ufunc)
-        georect = GeoRect(origin, (origin + img.shape[1], origin + img.shape[0]), crs=self.crs)
+        georect = GeoRect(origin, (origin + img.shape[1], origin + img.shape[0]), crs=self._crs)
         return GeoRaster(georect, img)
 
     def filter_by_image(self, image: np.ndarray, image_origin: Tuple[float, float] = (0, 0),
@@ -411,13 +454,13 @@ class GeoPointCloud(Tiles3dContentObject):
     def copy(self, indices: Union[np.ndarray, None] = None):
         if indices is not None:
             if indices.dtype == np.bool:
-                result = GeoPointCloud.from_pandas(self.data[indices], crs=self.crs)
+                result = GeoPointCloud.from_pandas(self.data[indices], crs=self._crs)
             elif indices.dtype == int or indices.dtype == np.long or indices.dtype == np.int:
                 mask = np.zeros(self.shape[0], dtype=bool)
                 mask[indices] = 1
-                result = GeoPointCloud.from_pandas(self.data[mask], crs=self.crs)
+                result = GeoPointCloud.from_pandas(self.data[mask], crs=self._crs)
         else:
-            result = GeoPointCloud.from_pandas(self.data.copy(), crs=self.crs)
+            result = GeoPointCloud.from_pandas(self.data.copy(), crs=self._crs)
         result._bounds = self._bounds
         result._principle_components = self._principle_components
         result._cov = self._cov
@@ -426,6 +469,7 @@ class GeoPointCloud(Tiles3dContentObject):
         result.rgb_max = self.rgb_max
         return result
 
+    @property
     def data_scheme(self):
         return dict([(name, column.dtype) for name, column in self.data.items()])
 
@@ -435,6 +479,9 @@ class GeoPointCloud(Tiles3dContentObject):
         self.data = pd.concat([self.data, other.data])
         if not keep_other:
             del other
+
+    def write_data(self, geopointcloud: 'GeoPointCloud'):
+        self.extend(geopointcloud)
 
     @property
     def size(self):
@@ -516,12 +563,18 @@ class GeoPointCloud(Tiles3dContentObject):
         return self._aab_dims
 
     @property
-    def bounds(self):
+    def bounds(self) -> np.ndarray:
         if self._bounds is None:
             mins = self.xyz.min()
             maxs = self.xyz.max()
-            self._bounds = [*mins[:3], *maxs[:3]]
+            self._bounds = np.array([*mins[:3], *maxs[:3]])
         return self._bounds
+
+    @property
+    def extent(self) -> np.ndarray:
+        if self._extent is None:
+            self._extent = self.bounds[3:] - self.bounds[:3]
+        return self._extent
 
     # TODO: Deprecated, remove!
     def visualize_pptk(self):
@@ -571,12 +624,13 @@ class GeoPointCloud(Tiles3dContentObject):
         from open3d.web_visualizer import draw as draw_jupyter
         self._plot_o3d(draw_jupyter, categorical_colors_attribute, color_map, *args, **kwargs)
 
+    @property
     def content_type_tile3d(self) -> Tiles3dContentType:
         return Tiles3dContentType.POINT_CLOUD
 
     @property
     def bounding_volume_tiles3d(self) -> Tiles3dBoundingVolume:
-        return GeoBox3d.from_bounds(self.bounds)
+        return GeoBox3d.from_bounds(self.bounds, self.crs)
 
     def to_bytes_tiles3d(self, rgb:bool = True, normals: bool = True) -> bytes:
         rgb = rgb and self.has_rgb
