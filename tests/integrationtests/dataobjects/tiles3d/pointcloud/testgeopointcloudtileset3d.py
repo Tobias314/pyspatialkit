@@ -35,5 +35,5 @@ class TestGeoPointCloudTileset3d(unittest.TestCase):
         #rmtree(str(self.dir_path))
 
     def test_write_tileset_to_static_dictionary(self):
-       tileset = GeoPointCloudTileset3d(self.pc, tile_size=(30,30,30))
+       tileset = GeoPointCloudTileset3d(self.pc, tile_size=(100,100,100))
        tileset.to_static_directory(self.dir_path)

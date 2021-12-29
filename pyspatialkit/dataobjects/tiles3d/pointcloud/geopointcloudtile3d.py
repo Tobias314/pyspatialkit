@@ -24,8 +24,6 @@ class GeoPointCloudTile3d(Tile3d):
         self.tile_identifier = identifier
         self.bbox = self.tileset.get_bbox_from_identifier(self.identifier)
 
-###Hooks which sub classes have to override###
-
     def get_bounding_volume(self) -> GeoBox3d:
         return self.bbox
 
@@ -37,7 +35,9 @@ class GeoPointCloudTile3d(Tile3d):
 
     def get_content(self) -> Tiles3dContentObject:
         if self.level == 0:
-            return self.tileset.point_cloud.get_data_for_geobox3d(self.bbox)
+            pcl = self.tileset.point_cloud.get_data_for_geobox3d(self.bbox)
+            pcl.to_crs(crs_transformer=self.tileset.to_epsg4978_transformer, inplace=True)
+            return pcl
         else:
             return None
 
