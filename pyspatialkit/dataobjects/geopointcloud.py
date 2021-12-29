@@ -44,7 +44,7 @@ class GeoPointCloudReadable(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def get_data_for_geobox3d(self, geobox: GeoBox3d, attributes: Optional[List[str]] = None)-> 'GeoPointCloudReadable':
+    def get_data_for_geobox3d(self, geobox: GeoBox3d, attributes: Optional[List[str]] = None)-> 'GeoPointCloud':
         raise NotImplementedError
 
 
@@ -187,7 +187,7 @@ class GeoPointCloud(Tiles3dContentObject, GeoPointCloudReadable, GeoPointCloudWr
     def crs(self)-> GeoCrs:
         return self._crs
 
-    def get_data_for_geobox3d(self, geobox: GeoBox3d, attributes: Optional[List[str]] = None)-> 'GeoPointCloudReadable':
+    def get_data_for_geobox3d(self, geobox: GeoBox3d, attributes: Optional[List[str]] = None)-> 'GeoPointCloud':
         mi=geobox.min
         ma=geobox.max
         mask = (self.x > mi[0]) & (self.x < ma[0])
@@ -206,7 +206,7 @@ class GeoPointCloud(Tiles3dContentObject, GeoPointCloudReadable, GeoPointCloudWr
     @xyz.setter
     def xyz(self, xyz: np.ndarray):
         assert xyz.shape == self.xyz.shape
-        self.data[['x', 'y', 'z']] = xyz
+        self.data.loc[:, ['x', 'y', 'z']] = xyz
 
     @property
     def x(self) -> pd.Series:
@@ -215,7 +215,7 @@ class GeoPointCloud(Tiles3dContentObject, GeoPointCloudReadable, GeoPointCloudWr
     @x.setter
     def x(self, x: np.ndarray):
         assert x.shape == self.x.shape
-        self.data['x'] = x
+        self.data.loc[:, 'x'] = x
 
     @property
     def y(self) -> pd.Series:
@@ -224,7 +224,7 @@ class GeoPointCloud(Tiles3dContentObject, GeoPointCloudReadable, GeoPointCloudWr
     @y.setter
     def y(self, y: np.ndarray):
         assert y.shape == self.y.shape
-        self.data['y'] = y
+        self.data.loc[:, 'y'] = y
 
     @property
     def z(self) -> pd.Series:
@@ -233,7 +233,7 @@ class GeoPointCloud(Tiles3dContentObject, GeoPointCloudReadable, GeoPointCloudWr
     @z.setter
     def z(self, z: np.ndarray):
         assert z.shape == self.z.shape
-        self.data['z'] = z
+        self.data.loc[:, 'z'] = z
 
     @property
     def rgb(self) -> Optional[pd.DataFrame]:
@@ -245,7 +245,7 @@ class GeoPointCloud(Tiles3dContentObject, GeoPointCloudReadable, GeoPointCloudWr
     @rgb.setter
     def rgb(self, rgb: np.ndarray):
         assert rgb.shape == self.rgb.shape
-        self.data[['r', 'g', 'b']] = rgb
+        self.data.loc[:, ['r', 'g', 'b']] = rgb
 
     @property
     def has_normals(self) -> bool:
@@ -269,7 +269,7 @@ class GeoPointCloud(Tiles3dContentObject, GeoPointCloudReadable, GeoPointCloudWr
     @normals_xyz.setter
     def normals_xyz(self, normals: np.ndarray) -> Optional[pd.DataFrame]:
         assert normals.shape == self.normals_xyz.shape
-        self.data[['n_x', 'n_y', 'n_z']] = normals
+        self.data.loc[:, ['n_x', 'n_y', 'n_z']] = normals
 
     @property
     def curvature(self) -> Optional[pd.Series]:
@@ -310,17 +310,21 @@ class GeoPointCloud(Tiles3dContentObject, GeoPointCloudReadable, GeoPointCloudWr
         for key, value in self.data.items():
             dtypes[key] = value.dtype
 
-    def to_crs(self, new_crs: GeoCrs, crs_transformer: Optional[GeoCrsTransformer] = None, inplace=True) -> 'GeoPointCloud':
+    def to_crs(self, new_crs: Optional[GeoCrs] = None, crs_transformer: Optional[GeoCrsTransformer] = None, inplace=True) -> 'GeoPointCloud':
+        if new_crs is None:
+            if crs_transformer is None:
+                raise AttributeError("You need to either specify a new_crs or a crs_transformer!")
+            new_crs = crs_transformer.to_crs
         if crs_transformer is None:
             crs_transformer = GeoCrsTransformer(self._crs, new_crs)
         if inplace:
             self.xyz = np.stack(crs_transformer.transform(self.x, self.y, self.z), axis=1)
-            self._crs = new_crs
             self._reset_cached()
+            self._crs = new_crs
             return self
         else:
             res = self.copy()
-            res.to_crs(new_crs = new_crs, crs_transformer=crs_transformer)
+            res.to_crs(new_crs = new_crs, crs_transformer=crs_transformer, inplace=True)
             return res
 
     def to_o3d(self, normalize_rgb=True):
@@ -531,7 +535,7 @@ class GeoPointCloud(Tiles3dContentObject, GeoPointCloudReadable, GeoPointCloudWr
     @property
     def center(self) -> np.ndarray:
         if self._center is None:
-            self._center = self.xyz.mean(axis=1)
+            self._center = self.xyz.mean(axis=0).to_numpy()
         return self._center
 
     def make_axis_aligned(self):
@@ -630,7 +634,7 @@ class GeoPointCloud(Tiles3dContentObject, GeoPointCloudReadable, GeoPointCloudWr
 
     @property
     def bounding_volume_tiles3d(self) -> Tiles3dBoundingVolume:
-        return GeoBox3d.from_bounds(self.bounds, self.crs)
+        return GeoBox3d.from_bounds(self.bounds, crs=self.crs)
 
     def to_bytes_tiles3d(self, rgb:bool = True, normals: bool = True) -> bytes:
         rgb = rgb and self.has_rgb

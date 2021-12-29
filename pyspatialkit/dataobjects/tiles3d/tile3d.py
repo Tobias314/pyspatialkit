@@ -155,6 +155,7 @@ class Tile3d(ABC):
             children_dicts.append(child_dict)
             end_points += e_pts
         res_dict = self._generate_tile_dict(tile_content_uri=tile_content_uri, children=children_dicts)
+        callback(self)
         return res_dict, end_points
 
     def _generate_tile_dict(self, tile_content_uri: str,

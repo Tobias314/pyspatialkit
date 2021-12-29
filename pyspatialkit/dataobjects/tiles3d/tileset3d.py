@@ -4,7 +4,7 @@ from pathlib import Path
 
 from .tile3d import Tile3d
 
-TILES3D_VERSION = 1.0
+TILES3D_VERSION = '1.0'
 
 class Tileset3d(ABC):
 

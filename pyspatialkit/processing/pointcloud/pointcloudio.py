@@ -16,18 +16,24 @@ PNTS_VERSION_HEADER_FIELD = to_endianess(np.array([PNTS_VERSION], dtype=np.uint3
 def geopointcloud_to_3dtiles_pnts(pcl: 'GeoPointCloud', rgb: bool = True, normals: bool = False) -> bytes:
     magic = b'pnts'
     version = PNTS_VERSION_HEADER_FIELD
-    batch_table_json_byte_length = np.array([0], dtype=np.uint32)
-    batch_table_binary_byte_length = np.array([0], dtype=np.uint32)
+    batch_table_json_byte_length = np.array([0], dtype='<u4').tobytes()
+    batch_table_binary_byte_length = np.array([0], dtype='<u4').tobytes()
     num_pts = pcl.shape[0]
+    center = pcl.center
     feature_table_json = {
         'POINTS_LENGTH': num_pts,
         'POSITION': {'byteOffset': 0},
+        'RTC_CENTER': list(center),
     }
     offset = num_pts * 12
-    center = pcl.center
     arrays: List[np.ndarray] = []
     xyz_array = (pcl.xyz.to_numpy() - center).astype(np.float32)
     arrays.append(xyz_array.flatten())
+    if normals:
+        feature_table_json['NORMAL'] = {'byteOffset': offset}
+        normal_array = pcl.normals_xyz.to_numpy().astype(np.float32)
+        arrays.append(normal_array.flatten())
+        offset += num_pts * 12
     if rgb:
         feature_table_json['RGB'] = {'byteOffset': offset}
         rgb_array = pcl.rgb.to_numpy()
@@ -36,22 +42,21 @@ def geopointcloud_to_3dtiles_pnts(pcl: 'GeoPointCloud', rgb: bool = True, normal
         rgb_array = rgb_array.astype(np.uint8)
         arrays.append(rgb_array.flatten())
         offset += num_pts * 3
-    if normals:
-        feature_table_json['NORMAL'] = {'byteOffset': offset}
-        normal_array = pcl.normals_xyz.to_numpy().astype(np.float32)
-        arrays.append(normal_array.flatten())
-        offset += num_pts * 12
     feature_table_json = json.dumps(feature_table_json)
-    feature_table_json = bytes(feature_table_json, 'utf-8')
+    feature_table_json_padding = (8 - (28 + len(feature_table_json)) % 8) % 8
+    feature_table_json = bytes(feature_table_json + ' ' * feature_table_json_padding, 'utf-8') 
     if sys.byteorder == 'big':
         for arr in arrays:
             arr.byteswap()
     feature_table = b''
     for arr in arrays:
+        print(arr)
         feature_table += arr.tobytes()
-    byte_length = np.array([28 + len(feature_table_json) + len(feature_table)], dtype='<u32').tobytes()
-    feature_table_json_byte_length = np.array([len(feature_table_json)], dtype='<u32').tobytes()
-    feature_table_binary_byte_length = np.array([len(feature_table)], dtype='<u32').tobytes()
+    feature_table_padding = (8 - len(feature_table) % 8) % 8
+    feature_table += b' ' * feature_table_padding
+    byte_length = np.array([28 + len(feature_table_json) + len(feature_table)], dtype='<u4').tobytes()
+    feature_table_json_byte_length = np.array([len(feature_table_json)], dtype='<u4').tobytes()
+    feature_table_binary_byte_length = np.array([len(feature_table)], dtype='<u4').tobytes()
     res = magic + version + byte_length + feature_table_json_byte_length + feature_table_binary_byte_length + \
            batch_table_json_byte_length + batch_table_binary_byte_length + feature_table_json + feature_table
     return res
