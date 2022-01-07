@@ -2,12 +2,12 @@ from ctypes import ArgumentError
 from typing import Tuple, List
 
 import numpy as np
-from shapely.geometry import MultiLineString, MultiPolygon, MultiPoint
 
 from .geotiler2d import GeoTiler2d
 from ..dataobjects.geoshape import GeoShape
 from ..spacedescriptors.georect import GeoRect
 from ..crs.geocrs import GeoCrs
+from ..utils.tiling import raster_bounds2d, bounds_from_polygon
 
 
 class GeoBoxTiler2d(GeoTiler2d):
@@ -26,22 +26,15 @@ class GeoBoxTiler2d(GeoTiler2d):
         return GeoBoxTile2dIterator(self)
 
     def _generate_tiles(self) -> List[GeoRect]:
-        bounds = []
-        if isinstance(self.aoi, (MultiLineString, MultiPolygon, MultiPoint)):
-            for geom in self.aoi:
-                bounds.append(geom.bounds)
-        else:
-            bounds = [self.aoi.bounds]
+        bounds = bounds_from_polygon(self.aoi)
         tiles = []
         inner_size = self.raster_size - 2 * self.border_size
-        for min_x, min_y, max_x, max_y in bounds:
-            xs = np.arange(min_x, max_x, inner_size[0])
-            ys = np.arange(min_y, max_y, inner_size[1])
-            origins = np.stack(np.meshgrid(xs, ys, indexing='ij'),axis=2).reshape((-1,2))
-            for origin in origins:
-                tile = GeoRect(origin - self.border_size, origin + self.raster_size + self.border_size, crs=self.reference_crs)
-                if self.aoi.shape.intersects(tile.to_shapely()):
-                    tiles.append(tile)
+
+        origins = raster_bounds2d(bounds, self.raster_size, border_size=self.border_size)
+        for origin in origins:
+            tile = GeoRect(origin - self.border_size, origin + self.raster_size + self.border_size, crs=self.reference_crs)
+            if self.aoi.shape.intersects(tile.to_shapely()):
+                tiles.append(tile)
         return tiles
 
     def get_all_tiles(self):

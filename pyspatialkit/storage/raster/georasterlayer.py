@@ -119,13 +119,17 @@ class GeoRasterLayer(GeoLayer):
                 self.backend.update_pyramid()
             self._eager_pyramid_update = True
 
-    def apply(self, tiler: GeoTiler2d, transformer: Callable[[GeoRaster], GeoRaster], output_layer: 'GeoRasterLayer',
-                resolution_rc: Optional[Tuple[int,int]]=None, band=None, no_data_value=0):
+    def apply(self, tiler: GeoTiler2d, transformer: Callable[[GeoRaster], Optional[GeoRaster]],
+              output_layer: Optional['GeoRasterLayer'] = None,
+              resolution_rc: Optional[Tuple[int,int]]=None, band=None, no_data_value=0):
+        if output_layer is None:
+            output_layer = self
         output_layer.begin_pyramid_update_transaction()
         for tile in tiler:
             georaster = self.get_raster_for_rect(tile,  resolution_rc=resolution_rc, band=band, no_data_value=no_data_value,)
             georaster = transformer(georaster)
-            output_layer.writer_raster_data(georaster)
+            if georaster is not None:
+                output_layer.writer_raster_data(georaster)
         output_layer.commit_pyramid_update_transaction()
 
     def _delete_permanently(self):

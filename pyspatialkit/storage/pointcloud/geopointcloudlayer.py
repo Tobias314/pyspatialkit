@@ -24,6 +24,8 @@ from ...dataobjects.georaster import GeoRaster
 from ...utils.datascheme import datascheme_to_str_dict, datascheme_from_str_dict
 from ...spacedescriptors.geobox3d import GeoBox3d
 from ...dataobjects.geopointcloud import GeoPointCloud, GeoPointCloudReadable, GeoPointCloudWritable
+from ...tiling.geoboxtiler3d import GeoBoxTiler3d
+from ...utils.logging import dbg
 
 BACKEND_DIRECTORY_NAME = "backend"
 
@@ -108,6 +110,19 @@ class GeoPointCloudLayer(GeoLayer, GeoPointCloudReadable, GeoPointCloudWritable)
             if self.build_pyramid:
                 self.backend.update_pyramid()
             self._eager_pyramid_update = True
+
+    def apply(self, tiler: GeoBoxTiler3d,
+              transformer: Callable[[GeoPointCloud], Optional[GeoPointCloud]],
+              attributes: Optional[List[str]] = None, output_layer: Optional['GeoPointCloudLayer'] = None):
+        if output_layer is None:
+            output_layer = self
+        output_layer.begin_pyramid_update_transaction()
+        for box3d in tiler:
+            pc = self.get_data_for_geobox3d(box3d,  attributes=attributes)
+            pc = transformer(pc)
+            if pc is not None:
+                output_layer.write_data(pc)
+        output_layer.commit_pyramid_update_transaction()
 
     def _delete_permanently(self):
         self.backend.delete_permanently()
