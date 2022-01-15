@@ -35,6 +35,10 @@ class GeoRect:
         return GeoRect(bounds[:2], bounds[2:], crs=crs)
 
     @classmethod
+    def from_min_max(cls, min_pt: Tuple[float, float], max_pt: Tuple[float, float], crs: GeoCrs)-> 'GeoRect':
+        return GeoRect(min_pt, max_pt, crs=crs)
+
+    @classmethod
     def from_sentinelhub_bbox(cls, sentinelhub_bbox: sentinelhub.BBox):
         return GeoRect(sentinelhub_bbox.lower_left, sentinelhub_bbox.upper_right, crs=GeoCrs(sentinelhub_bbox.crs))
 
@@ -49,7 +53,8 @@ class GeoRect:
             self.is_axis_aligned = True
         else:
             self.is_axis_aligned = False
-        self._transform = projective_transform_from_pts(source_pts=np.array([[0,0],[1,0],[1,1],[0,1]]), destination_pts=np.array(self.points))
+        self._transform = None
+        self._bounds = None
 
     def to_shapely(self) -> Polygon:
         return Polygon([self.top_left, self.top_right, self.bottom_right, self.bottom_left])
@@ -70,7 +75,15 @@ class GeoRect:
         return self.to_shapely().bounds
 
     @property
+    def bounds(self):
+        if self._bounds is None:
+            self._bounds = self.get_bounds()
+        return self._bounds
+
+    @property
     def transform(self):
+        if self._transform is None:
+            self._transform = projective_transform_from_pts(source_pts=np.array([[0,0],[1,0],[1,1],[0,1]]), destination_pts=np.array(self.points))
         return self._transform
 
     @property

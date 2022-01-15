@@ -65,8 +65,8 @@ class GeoMesh:
 
     def __getstate__(self):
         data = Geo3dMeshData()
-        data.vertices = self.vertices()
-        data.faces = self.faces()
+        data.vertices = self.vertices
+        data.faces = self.faces
         return data
 
     def __setstate__(self, state : Geo3dMeshData):
@@ -85,10 +85,11 @@ class GeoMesh:
     def to_trimesh(self):
         return self.tmesh
 
-    def to_o3d(self):
-        vertices = o3d.utility.Vector3dVector(self.vertices)
-        triangles = o3d.utility.Vector3iVector(self.faces)
-        return o3d.geometry.TriangleMesh(vertices, triangles)
+    def to_o3d(self) -> o3d.geometry.TriangleMesh:
+        #vertices = o3d.utility.Vector3dVector(self.vertices)
+        #triangles = o3d.utility.Vector3iVector(self.faces)
+        #return o3d.geometry.TriangleMesh(vertices, triangles)
+        return self.tmesh.as_open3d
 
     # def as_kmesh(self):
     #    if not self.cached_kalmesh:
@@ -121,6 +122,10 @@ class GeoMesh:
     @property
     def faces(self):
         return self.tmesh.faces
+
+    @faces.setter
+    def faces(self, faces: np.ndarray):
+        self.tmesh.faces = faces
 
     @property
     def vertex_normals(self):

@@ -24,7 +24,7 @@ RUN apt-get update -q && \
 ENV PATH /opt/conda/bin:$PATH
 CMD [ "/bin/bash" ]
 # Leave these args here to better use the Docker build cache
-ARG CONDA_VERSION=py39_4.10.3
+ARG CONDA_VERSION=latest
 RUN set -x && \
     UNAME_M="$(uname -m)" && \
     if [ "${UNAME_M}" = "x86_64" ]; then \
@@ -54,12 +54,17 @@ RUN set -x && \
     /opt/conda/bin/conda clean -afy
 
 
+################################## Install Mamba (faster conda replacement) ##################################
+RUN conda install mamba -n base -c conda-forge
+RUN mamba init
+SHELL ["bash", "-lc"]
+
 
 ################################## Conda environment ##################################
-RUN conda create -n env python=3.7
+RUN mamba create -n env python=3.7
 
 # Make RUN commands use the new environment:
-RUN echo "conda activate env" >> ~/.bashrc
+RUN echo "mamba activate env" >> ~/.bashrc
 #SHELL ["conda", "run", "-n", "myenv", "/bin/bash", "-c"]
 SHELL ["/bin/bash", "--login", "-c"]
 
@@ -80,35 +85,40 @@ ENV NVIDIA_DRIVER_CAPABILITIES graphics,utility,compute
 
 ################################## Conda Dependencies ##################################
 # Conda
-RUN conda config --add channels conda-forge
-RUN conda config --set channel_priority strict
-RUN conda install -n env -c open3d-admin -c conda-forge open3d -y
-RUN conda install -n env geopandas -y
-RUN conda install -n env tiledb-py -y
-RUN conda install -n env rasterio -y
-RUN conda install -n env pylint ipykernel -y
-RUN conda install -n env numpy matplotlib -y
-RUN conda install -n env shapely -y
-RUN conda install -n env pyproj -y
-RUN conda install -n env scikit-image -y
-RUN conda install -n env -c conda-forge pygeos -y
-RUN conda install -n env -c conda-forge fastapi uvicorn -y
-RUN conda install -n env -c conda-forge genshi -y
-RUN conda install -n env -c conda-forge opencv -y
-RUN conda install -n env -c conda-forge eo-learn -y
-RUN conda install -n env -c conda-forge pyarrow -y
-RUN conda install -n env -c conda-forge pdal -y
-RUN conda install -n env -c conda-forge python-pdal -y
-RUN conda install -n env -c conda-forge sentinelhub -y
-RUN conda install -n env -c conda-forge "shapely<1.8.0" -y
-RUN conda install -n env -c conda-forge eo-learn -y
-RUN conda install -n env -c conda-forge xarray dask netCDF4 bottleneck -y
-RUN conda install -n env -c conda-forge autopep8 -y
-RUN conda install -n env -c conda-forge trimesh -y
+RUN mamba config --add channels conda-forge
+RUN mamba config --set channel_priority strict
+RUN mamba install -n env -c conda-forge geopandas -y
+RUN mamba install -n env -c open3d-admin -c conda-forge open3d -y
+RUN mamba install -c conda-forge tiledb=2.6 -y
+RUN mamba install -n env -c conda-forge rasterio -y
+RUN mamba install -n env -c conda-forge pylint ipykernel -y
+RUN mamba install -n env -c conda-forge numpy matplotlib -y
+RUN mamba install -n env -c conda-forge shapely -y
+RUN mamba install -n env -c conda-forge pyproj -y
+RUN mamba install -n env -c conda-forge scikit-image -y
+RUN mamba install -n env -c conda-forge pygeos -y
+RUN mamba install -n env -c conda-forge fastapi uvicorn -y
+RUN mamba install -n env -c conda-forge genshi -y
+RUN mamba install -n env -c conda-forge opencv -y
+RUN mamba install -n env -c conda-forge eo-learn -y
+RUN mamba install -n env -c conda-forge pyarrow -y
+RUN mamba install -n env -c conda-forge pdal -y
+RUN mamba install -n env -c conda-forge python-pdal -y
+RUN mamba install -n env -c conda-forge sentinelhub -y
+#RUN mamba install -n env -c conda-forge "shapely<1.8.0" -y
+RUN mamba install -n env -c conda-forge shapely -y
+RUN mamba install -n env -c conda-forge eo-learn -y
+RUN mamba install -n env -c conda-forge xarray dask netCDF4 bottleneck -y
+RUN mamba install -n env -c conda-forge autopep8 -y
+RUN mamba install -n env -c conda-forge trimesh -y
+RUN mamba install -n env -c conda-forge tensorboard -y
+RUN mamba install -n env -c conda-forge mapbox_earcut -y
+RUN mamba install -n env -c conda-forge tiledb-py -y
 # RUN conda install -n env pytorch torchvision torchaudio cudatoolkit=10.2 -c pytorch
 
 ################################## Pip Dependencies ##################################
-RUN conda activate env; pip install pylas
+RUN mamba activate env; pip install pylas
+RUN mamba activate env; pip install triangle
 
 ################################## Npm Dependencies ##################################
 RUN apt update

@@ -37,10 +37,6 @@ class TileDbSparseBackend:
             raise ValueError("At least {},{},{} must be in the data scheme!".format(
                 AXIS_NAMES[0], AXIS_NAMES[1], AXIS_NAMES[2]))
         self.data_scheme = data_scheme
-        directory_path = Path(directory_path)
-        assert(directory_path.is_dir)
-        directory_path.mkdir(parents=True, exist_ok=True)
-        self.directory_path = directory_path
         self.build_pyramid = build_pyramid
         if self.build_pyramid:
             max_pyramid_layers = int(np.log2(self.extent / np.array(self.space_tile_size)).max())
@@ -56,13 +52,22 @@ class TileDbSparseBackend:
         npts_dim2 = self.space_tile_size[1] / base_point_density
         npts_dim3 = self.space_tile_size[2] / base_point_density
         self.num_points_base_tile_estimate: float = npts_dim1 * npts_dim2 + npts_dim1 * npts_dim3 + npts_dim2 * npts_dim3
-        self.levels: List[tiledb.Array] = [
-            None, ] * (self.num_pyramid_layers + 1)
-        tiledb.group_create(str(self.directory_path))
+        self.levels: List[tiledb.Array] = [None, ] * (self.num_pyramid_layers + 1)
+        directory_path = Path(directory_path)
+        assert(directory_path.is_dir)
+        self.directory_path = directory_path
+        if not directory_path.exists():
+            directory_path.mkdir(parents=True)
+            tiledb.group_create(str(self.directory_path))
         self.array_attributes = OrderedDict()
         for a, dt in self.data_scheme.items():
             if a not in AXIS_NAMES_SET:
                 self.array_attributes[a] = tiledb.Attr(name=a, dtype=dt)
+        if len(self.array_attributes) == 0:
+            self._no_attributes = True
+            self.array_attributes['t'] = tiledb.Attr(name='t', dtype=int)
+        else:
+            self._no_attributes = False
         for i, layer in enumerate(self.levels):
             path = str(self.directory_path / ("level_" + str(i)))
             if not Path(path).exists():
@@ -96,6 +101,8 @@ class TileDbSparseBackend:
                     raise ValueError(
                         'Attribute {} does not exist!'.format(column))
                 attributes[column] = data[column].to_numpy()
+        if self._no_attributes:
+            attributes = np.full(data.shape[0], True)
         self.levels[0][1].close()
         with tiledb.SparseArray(self.levels[0][0], mode='w') as db:
             x = data[AXIS_NAMES[0]].to_numpy()

@@ -14,7 +14,7 @@ from sklearn.decomposition import PCA
 from matplotlib import cm
 
 from . import geomesh
-from ..processing.pointcloud.utils import points3d_to_image
+from ..processing.pointcloud.projection import points3d_to_image
 from ..crs.geocrs import GeoCrs, NoneCRS
 from ..crs.geocrstransformer import GeoCrsTransformer
 from ..crs.geocrs import NoneCRS
@@ -24,6 +24,8 @@ from ..spacedescriptors.geobox3d import GeoBox3d
 from ..spacedescriptors.tiles3dboundingvolume import Tiles3dBoundingVolume
 from .tiles3d.tiles3dcontentobject import Tiles3dContentObject, Tiles3dContentType
 from ..processing.pointcloud.pointcloudio import geopointcloud_to_3dtiles_pnts
+from ..processing.pointcloud.filtering import create_filter_from_voxel_grid
+from ..processing.image import interpolation as img_interpolation
 
 
 class GeoPointCloudReadable(ABC):
@@ -128,7 +130,7 @@ class GeoPointCloud(Tiles3dContentObject, GeoPointCloudReadable, GeoPointCloudWr
             raise ValueError("Open3d point cloud needs to have points")
         xyz = np.array(o3d_point_cloud.points)
         normals = None
-        if (o3d_point_cloud.has_normals()):
+        if (o3d_point_cloud.has_normals):
             normals = np.array(o3d_point_cloud.normals)
             if (normals.shape[0] != xyz.shape[0]):
                 normals = None
@@ -140,7 +142,7 @@ class GeoPointCloud(Tiles3dContentObject, GeoPointCloudReadable, GeoPointCloudWr
         return GeoPointCloud.from_numpy_arrays(xyz, crs=crs, rgb=rgb, normals_xyz=normals, rgb_max=rgb_max)
 
     @classmethod
-    def from_las(cls, file_path, crs:GeoCrs = NoneCRS()):
+    def from_las_file(cls, file_path, crs:GeoCrs = NoneCRS()):
         pipeline_description = [str(file_path)]
         pipeline = pdal.Pipeline(json.dumps(pipeline_description))
         count = pipeline.execute()
@@ -195,9 +197,9 @@ class GeoPointCloud(Tiles3dContentObject, GeoPointCloudReadable, GeoPointCloudWr
         mask = mask & (self.z > mi[2]) & (self.z < ma[2])
         return self[mask.to_numpy()]
 
-    def split_by_class(self, class_column: str) -> List['GeoPointCloud']:
-        return [GeoPointCloud.from_pandas(x, rgb_max=self.rgb_max) for _, x in
-                self.data.groupby(self.data[class_column])]
+    def partition_by(self, class_column: str) -> Dict[object, 'GeoPointCloud']:
+        return {key: GeoPointCloud.from_pandas(x, rgb_max=self.rgb_max) for key, x in
+                self.data.groupby(self.data[class_column])}
 
     @property
     def xyz(self) -> pd.DataFrame:
@@ -261,7 +263,7 @@ class GeoPointCloud(Tiles3dContentObject, GeoPointCloudReadable, GeoPointCloudWr
 
     @property
     def normals_xyz(self) -> Optional[pd.DataFrame]:
-        if self.has_normals():
+        if self.has_normals:
             return self.data[['n_x', 'n_y', 'n_z']]
         else:
             return None
@@ -401,36 +403,36 @@ class GeoPointCloud(Tiles3dContentObject, GeoPointCloudReadable, GeoPointCloudWr
             return [GeoPointCloud.from_structured_array(a, crs=self._crs) for a in pipeline.arrays]
 
     def filter_by_voxel_grid(self, voxel_grid: 'GeoVoxelGrid') -> 'GeoPointCloud':
-        s_indices = ((self.xyz.to_numpy() - voxel_grid.origin) // voxel_grid.voxel_size).astype(int)
-        mask = (s_indices[:, 0] >= 0) & (s_indices[:, 0] < voxel_grid.shape[0])
-        mask &= (s_indices[:, 1] >= 0) & (s_indices[:, 1] < voxel_grid.shape[1])
-        mask &= (s_indices[:, 2] >= 0) & (s_indices[:, 2] < voxel_grid.shape[2])
-        valid = s_indices[mask]
-        s_indices = np.zeros(self.shape[0], dtype=bool)
-        s_indices[mask] = voxel_grid.occupied()[valid[:, 0], valid[:, 1], valid[:, 2]]
-        return self[s_indices]
+        return self[create_filter_from_voxel_grid(self, voxel_grid)]
 
     def to_image(self, pixel_size: float, up_axis: int = 1, value_field: Optional[str] = None, empty_value=0,
-                 ufunc: Optional[np.ufunc] = None) -> Tuple[np.ndarray, np.ndarray]:
+                 ufunc: Optional[np.ufunc] = None, interpolate_holes: bool = False) -> Tuple[np.ndarray, np.ndarray]:
         xyz = self.xyz.to_numpy()
         if value_field is None:
             values = 1
         elif value_field == 'height':
             values = self.xyz.to_numpy()[:, up_axis]
             if ufunc is None:
-                ufunc = np.maximum()
+                ufunc = np.maximum
         else:
-            values = self.data[value_field]
-        return points3d_to_image(pixel_size=pixel_size, xyz=xyz, values=values, up_axis=up_axis,
-                                 empty_value=empty_value, ufunc=ufunc)
+            values = self.data[value_field]            
+        res = points3d_to_image(pixel_size=pixel_size, xyz=xyz, values=values, up_axis=up_axis,
+                                empty_value=empty_value, ufunc=ufunc, return_mask=interpolate_holes)
+        if not interpolate_holes:
+            return res
+        else:
+            img, origin, mask = res
+            img = img_interpolation.interpolate_holes(img, mask)
+            return img, origin
 
-    def to_georaster(self, pixel_size: float, value_field: Optional[str] = None, empty_value=0,
-                     ufunc: Optional[np.ufunc] = None) -> GeoRaster:
+    def to_georaster(self, pixel_size: float, value_field: Optional[str] = 'height', empty_value=0,
+                     ufunc: Optional[np.ufunc] = None, interpolate_holes: bool = False) -> GeoRaster:
         if self._crs.is_geocentric:
             raise ValueError("Point clouds in geocentric coordinates cannot projected down along the z-axis to flatten them to earth surface")
         img, origin = self.to_image(pixel_size=pixel_size, up_axis=2, value_field=value_field, empty_value=empty_value,
-                                     ufunc=ufunc)
-        georect = GeoRect(origin, (origin + img.shape[1], origin + img.shape[0]), crs=self._crs)
+                                    ufunc=ufunc, interpolate_holes=interpolate_holes)
+        img_geo_size = np.array(img.shape[:2]) * pixel_size
+        georect = GeoRect.from_min_max(origin, origin + img_geo_size, crs=self.crs)
         return GeoRaster(georect, img)
 
     def filter_by_image(self, image: np.ndarray, image_origin: Tuple[float, float] = (0, 0),
@@ -457,7 +459,7 @@ class GeoPointCloud(Tiles3dContentObject, GeoPointCloudReadable, GeoPointCloudWr
 
     def copy(self, indices: Union[np.ndarray, None] = None):
         if indices is not None:
-            if indices.dtype == np.bool:
+            if indices.dtype == bool:
                 result = GeoPointCloud.from_pandas(self.data[indices], crs=self._crs)
             elif indices.dtype == int or indices.dtype == np.long or indices.dtype == np.int:
                 mask = np.zeros(self.shape[0], dtype=bool)
@@ -546,7 +548,8 @@ class GeoPointCloud(Tiles3dContentObject, GeoPointCloudReadable, GeoPointCloudWr
         o3d_pc = self.to_o3d()
         o3d_pc.estimate_normals(o3d.geometry.KDTreeSearchParamKNN(knn_k), fast_normal_computation)
         normals = np.array(o3d_pc.normals)
-        self.data[['n_x', 'n_y', 'n_z']] = normals
+        self.data.loc[:, ['n_x', 'n_y', 'n_z']] = normals
+        self._has_normals = True
 
     def subsample_random(self, num_points) -> 'GeoPointCloud':
         if num_points > self.shape[0]:
@@ -617,7 +620,7 @@ class GeoPointCloud(Tiles3dContentObject, GeoPointCloudReadable, GeoPointCloudWr
             rgb = self.rgb.to_numpy().astype(float)
             rgb /= self.rgb_max
             pc3d.colors = o3d.utility.Vector3dVector(rgb)
-        if self.has_normals():
+        if self.has_normals:
             pc3d.normals = o3d.utility.Vector3dVector(self.normals_xyz.to_numpy())
         function([pc3d], *args, **kwargs)
 

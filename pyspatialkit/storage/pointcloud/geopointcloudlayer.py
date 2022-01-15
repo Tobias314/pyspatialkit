@@ -59,7 +59,7 @@ class GeoPointCloudLayer(GeoLayer, GeoPointCloudReadable, GeoPointCloudWritable)
     def persist_data(self, dir_path: Path):
         config = {}
         config['crs'] = self.crs.to_dict()
-        config['bounds'] = self._bounds
+        config['bounds'] = list(self._bounds)
         config['build_pyramid'] = self.build_pyramid
         config['data_schema'] = datascheme_to_str_dict(self._data_scheme)
         config['point_density'] = self.point_density
@@ -73,7 +73,7 @@ class GeoPointCloudLayer(GeoLayer, GeoPointCloudReadable, GeoPointCloudWritable)
             config = json_file.read()
             config = json.loads(config)
             self._crs = GeoCrs.from_dict(config['crs'])
-            self._bounds = config['bounds']
+            self._bounds = np.array(config['bounds'])
             self.build_pyramid = config['build_pyramid']
             self._data_scheme = datascheme_from_str_dict(config['data_schema'])
             self.point_density = config['point_density']

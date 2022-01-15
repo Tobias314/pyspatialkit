@@ -29,7 +29,7 @@ class TestGeoPointCloudLayer(unittest.TestCase):
         self.pc = GeoPointCloud.from_pandas(self.df, crs=NoneCRS())
         self.backend_bounds = [-10,-10,-5,200,150, 101]
         self.data_schema = {'x':np.float64, 'y':np.float64, 'z':np.float64, 'a':np.float64, 'b':np.float64, 'c':np.float64}
-        self.dir_path = get_tmp_path() / 'geopointlcoudlayer'
+        self.dir_path = get_tmp_path() / 'geopointlcoudlayer_tmp'
         self.pclayer = GeoPointCloudLayer(directory_path=self.dir_path, crs=NoneCRS(), bounds=self.backend_bounds,
                                            data_scheme=self.data_schema, point_density=1, build_pyramid=False)
         self.aoi = GeoShape(Polygon([(0,0), (100,0), (100,100), (0, 100)]), crs=NoneCRS())
@@ -42,7 +42,7 @@ class TestGeoPointCloudLayer(unittest.TestCase):
         self.pclayer.write_data(self.pc)
         read_pc = self.pclayer.get_data_for_geobox3d(GeoBox3d(min=(50,50,50), max=(75,75,75), crs=NoneCRS()))
         self.assertEqual(read_pc.shape, (26,6))
-        self.assertEqual(read_pc.x.to_numpy(), 62.5)
+        self.assertEqual(read_pc.x.to_numpy().mean(), 62.5)
 
     def test_apply(self):
         self.pclayer.write_data(self.pc)
