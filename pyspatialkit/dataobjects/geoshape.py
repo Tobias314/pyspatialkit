@@ -1,5 +1,5 @@
 from types import ClassMethodDescriptorType
-from typing import Union, Optional
+from typing import Union, Optional, Tuple
 from pathlib import Path
 from geopandas.geodataframe import GeoDataFrame
 
@@ -19,7 +19,7 @@ class GeoShape:
         self.crs = crs
 
     @classmethod
-    def from_shapefile(self, file_path: Union[str, Path]) -> 'GeoShape':
+    def from_shapefile(cls, file_path: Union[str, Path]) -> 'GeoShape':
         gdf: GeoDataFrame = gpd.GeoDataFrame.from_file(file_path)
         if len(gdf)==0:
             raise AttributeError("Shapefile is empty")
@@ -33,7 +33,21 @@ class GeoShape:
             multi_geom = MultiLineString(list(gdf.geometry))
         elif isinstance(geom_probe, Point):
             multi_geom = MultiPoint(list(gdf.geometry))
-        return GeoShape(multi_geom, GeoCrs(gdf.crs))        
+        return GeoShape(multi_geom, GeoCrs(gdf.crs))      
+
+    @classmethod
+    def from_bounds(cls, bounds: Union[Tuple[float, float, float, float], Tuple[float, float, float, float, float, float]], crs: GeoCrs) -> 'GeoShape':
+        if len(bounds)==4:
+            return cls.from_bounds_2d(bounds, crs)
+        elif crs.is_geocentric:
+            raise AttributeError("Cannot create 2d shape for bounds in geocentric CRS!")
+        else:
+            return cls.from_bounds_2d((*bounds[:2], *bounds[3:5]), crs)
+
+    @classmethod
+    def from_bounds_2d(cls, bounds: Tuple[float, float, float, float], crs: GeoCrs) -> 'GeoShape':
+        rect = Polygon([bounds[:2], [bounds[2], bounds[1]], bounds[2:], (bounds[0], bounds[3])])
+        return cls(rect, crs)
 
     def to_crs(self, new_crs: GeoCrs, crs_transformer: Optional[GeoCrsTransformer] = None, inplace=True) -> 'GeoShape':
         if crs_transformer is None:

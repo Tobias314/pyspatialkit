@@ -1,6 +1,6 @@
 from abc import abstractmethod
 from pathlib import Path
-from typing import Optional, Tuple, Callable
+from typing import Optional, Tuple, Callable, Union
 import json
 from collections.abc import Iterable
 
@@ -24,13 +24,19 @@ BACKEND_DIRECTORY_NAME = "backend"
 class GeoRasterLayer(GeoLayer):
     
     def initialize(self, num_bands:int, dtype: np.dtype,
-                    crs: GeoCrs = DEFAULT_CRS, bounds: Optional[Tuple[float, float, float, float]] = None, fill_value=0,
+                    crs: GeoCrs = DEFAULT_CRS,
+                    bounds: Optional[Union[Tuple[float, float, float, float], Tuple[float, float, float, float, float, float]]] = None,
+                    fill_value=0,
                     pixel_size_xy: Tuple[float, float] = (1,1,), build_pyramid:bool=True):
         self.num_bands = num_bands
         self.dtype = dtype
+        if crs.is_geocentric:
+            raise AttributeError('CRS for 2d raster layer cannot be geocantric!')
         self._crs = crs
         if bounds is None:
             bounds = crs_bounds(crs)
+        elif len(bounds)==6:
+            bounds = (*bounds[:2], *bounds[3:5])
         self.bounds = bounds
         self.pixel_size_xy = pixel_size_xy
         self.fill_value = fill_value

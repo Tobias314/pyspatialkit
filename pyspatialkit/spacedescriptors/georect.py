@@ -15,6 +15,8 @@ class GeoRect:
     def __init__(self, bottom_left: Tuple[float, float],  top_right: Tuple[float, float],
                  bottom_right: Optional[Tuple[float, float]] = None, top_left: Optional[Tuple[float, float]] = None,
                  crs: GeoCrs = NoneCRS):
+        if crs.is_geocentric:
+            raise AttributeError('CRS for 2d GeoRect cannot be geocentric!')
         self.crs = crs
         self.bottom_left = np.array(bottom_left)
         self.top_right = np.array(top_right)
@@ -31,8 +33,11 @@ class GeoRect:
         return GeoRect(points[0], points[2], points[1], points[3], crs=crs)
 
     @classmethod
-    def from_bounds(cls, bounds: Tuple[float,float,float,float], crs: GeoCrs) -> 'GeoRect':
-        return GeoRect(bounds[:2], bounds[2:], crs=crs)
+    def from_bounds(cls, bounds: Union[Tuple[float,float,float,float],  Tuple[float,float,float,float,float, float]], crs: GeoCrs) -> 'GeoRect':
+        if len(bounds) == 4:
+            return GeoRect(bounds[:2], bounds[2:], crs=crs)
+        else:
+            return GeoRect(bounds[:2], bounds[3:5], crs=crs)
 
     @classmethod
     def from_min_max(cls, min_pt: Tuple[float, float], max_pt: Tuple[float, float], crs: GeoCrs)-> 'GeoRect':
