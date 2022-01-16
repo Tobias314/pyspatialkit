@@ -65,7 +65,7 @@ class TileDbSparseBackend:
                 self.array_attributes[a] = tiledb.Attr(name=a, dtype=dt)
         if len(self.array_attributes) == 0:
             self._no_attributes = True
-            self.array_attributes['t'] = tiledb.Attr(name='t', dtype=int)
+            self.array_attributes['t'] = tiledb.Attr(name='t', dtype=np.uint8)
         else:
             self._no_attributes = False
         for i, layer in enumerate(self.levels):
@@ -102,7 +102,7 @@ class TileDbSparseBackend:
                         'Attribute {} does not exist!'.format(column))
                 attributes[column] = data[column].to_numpy()
         if self._no_attributes:
-            attributes = np.full(data.shape[0], True)
+            attributes = np.full(data.shape[0], 1, dtype=np.uint8)
         self.levels[0][1].close()
         with tiledb.SparseArray(self.levels[0][0], mode='w') as db:
             x = data[AXIS_NAMES[0]].to_numpy()
@@ -167,8 +167,12 @@ class TileDbSparseBackend:
     #             level -= 1
     #     return self.get_data_for_level(bounds=bounds, level=level, attributes=attributes)
 
-    def get_data_for_level(self, bounds: Tuple[float, float, float, float, float, float], level: int, attributes: Optional[Tuple[str]] = None):
-        return self.levels[level][1].query(attrs=attributes, coords=True, use_arrow=False).df[bounds[0]:bounds[3], bounds[1]:bounds[4], bounds[2]:bounds[5]]
+    def get_data_for_level(self, bounds: Tuple[float, float, float, float, float, float], level: int, attributes: Optional[Tuple[str]] = None) -> pd.DataFrame:
+        res = self.levels[level][1].query(attrs=attributes, coords=True, use_arrow=False).df[bounds[0]:bounds[3], bounds[1]:bounds[4], bounds[2]:bounds[5]]
+        if self._no_attributes:
+            res.drop(columns='t', inplace=True)
+        return res
+
 
     def delete_permanently(self):
         for level in self.levels:

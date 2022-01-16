@@ -87,9 +87,11 @@ ENV NVIDIA_DRIVER_CAPABILITIES graphics,utility,compute
 # Conda
 RUN mamba config --add channels conda-forge
 RUN mamba config --set channel_priority strict
+RUN mamba install -n env -c conda-forge tiledb=2.6.0 -y
+RUN mamba install -n env -c conda-forge tiledb-py=0.12.0 -y
+#RUN mamba install -n env -c conda-forge libgdal=3.4 -y
 RUN mamba install -n env -c conda-forge geopandas -y
 RUN mamba install -n env -c open3d-admin -c conda-forge open3d -y
-RUN mamba install -c conda-forge tiledb=2.6 -y
 RUN mamba install -n env -c conda-forge rasterio -y
 RUN mamba install -n env -c conda-forge pylint ipykernel -y
 RUN mamba install -n env -c conda-forge numpy matplotlib -y
@@ -113,12 +115,12 @@ RUN mamba install -n env -c conda-forge autopep8 -y
 RUN mamba install -n env -c conda-forge trimesh -y
 RUN mamba install -n env -c conda-forge tensorboard -y
 RUN mamba install -n env -c conda-forge mapbox_earcut -y
-RUN mamba install -n env -c conda-forge tiledb-py -y
+RUN mamba install -n env -c conda-forge ipympl -y
 # RUN conda install -n env pytorch torchvision torchaudio cudatoolkit=10.2 -c pytorch
 
 ################################## Pip Dependencies ##################################
-RUN mamba activate env; pip install pylas
-RUN mamba activate env; pip install triangle
+RUN conda activate env; pip install pylas
+RUN conda activate env; pip install triangle
 
 ################################## Npm Dependencies ##################################
 RUN apt update

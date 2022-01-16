@@ -85,3 +85,9 @@ class GeoBox3d(Tiles3dBoundingVolume):
             z_vec = np.array([0,0,1]) * edge_half_length[2]
             res_vec = [*((min_pt + max_pt) / 2), *x_vec, *y_vec, *z_vec]
             return {'box': res_vec}
+
+    def __str__(self)-> str:
+        return "GeoBox3d(min: {}, max: {})".format(list(self.min), list(self.max))
+
+    def __repr__(self)-> str:
+        return str(self) 
