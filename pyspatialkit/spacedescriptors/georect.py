@@ -47,6 +47,9 @@ class GeoRect:
     def from_sentinelhub_bbox(cls, sentinelhub_bbox: sentinelhub.BBox):
         return GeoRect(sentinelhub_bbox.lower_left, sentinelhub_bbox.upper_right, crs=GeoCrs(sentinelhub_bbox.crs))
 
+    def copy(self):
+        return GeoRect(bottom_left=self.bottom_left, top_right=self.top_right, bottom_right=self.bottom_right,  top_left=self.top_left, crs=self.crs)
+
     def _create_cache(self, points: Optional[Union[List[Tuple[float,float]], np.ndarray]] = None):
         if points is not None:
             self.bottom_left = np.array(points[0])

@@ -1,6 +1,6 @@
 from abc import abstractmethod
 from pathlib import Path
-from typing import Optional, Tuple, Callable, Dict, List
+from typing import Optional, Tuple, Callable, Dict, List, Union
 import json
 from collections.abc import Iterable
 import shutil
@@ -23,9 +23,11 @@ from ...spacedescriptors.georect import GeoRect
 from ...dataobjects.georaster import GeoRaster
 from ...utils.datascheme import datascheme_to_str_dict, datascheme_from_str_dict
 from ...spacedescriptors.geobox3d import GeoBox3d
+from ...spacedescriptors.geobox2d import GeoBox2d
 from ...dataobjects.geopointcloud import GeoPointCloud, GeoPointCloudReadable, GeoPointCloudWritable
 from ...tiling.geoboxtiler3d import GeoBoxTiler3d
 from ...utils.logging import dbg
+
 
 BACKEND_DIRECTORY_NAME = "backend"
 
@@ -42,6 +44,7 @@ class GeoPointCloudLayer(GeoLayer, GeoPointCloudReadable, GeoPointCloudWritable)
         self._crs = crs
         if bounds is None:
             bounds = crs_bounds(crs)
+        if len(bounds) == 4:
             bounds = (bounds[0], bounds[1], DEFAULT_MIN_ELEVATION,
                       bounds[2], bounds[3], DEFAULT_MAX_ELEVATION)
         self._bounds = bounds
@@ -84,7 +87,9 @@ class GeoPointCloudLayer(GeoLayer, GeoPointCloudReadable, GeoPointCloudWritable)
                                                 space_tile_size=self.backend_space_tile_size,
                                                 build_pyramid=self.build_pyramid)
 
-    def get_data_for_geobox3d(self, geobox: GeoBox3d, attributes: Optional[List[str]] = None) -> GeoPointCloud:
+    def get_data(self, geobox: Union[GeoBox3d, GeoBox2d], attributes: Optional[List[str]] = None) -> GeoPointCloud:
+        if isinstance(geobox, GeoBox2d):
+            geobox = GeoBox3d.from_geobox2d(geobox, min_height=self.bounds[2], max_height=self.bounds[5])
         if geobox.crs == self.crs:
                 data = self.backend.get_data([*geobox.min, *geobox.max], attributes=attributes)
         else:
@@ -117,9 +122,9 @@ class GeoPointCloudLayer(GeoLayer, GeoPointCloudReadable, GeoPointCloudWritable)
         if output_layer is None:
             output_layer = self
         output_layer.begin_pyramid_update_transaction()
-        for box3d in tiler:
-            pc = self.get_data_for_geobox3d(box3d,  attributes=attributes)
-            pc = transformer(pc)
+        for box3d, box_without_border in tiler:
+            pc = self.get_data(box3d,  attributes=attributes)
+            pc = transformer(pc, box_without_border)
             if pc is not None:
                 output_layer.write_data(pc)
         output_layer.commit_pyramid_update_transaction()

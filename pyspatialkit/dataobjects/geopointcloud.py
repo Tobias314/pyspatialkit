@@ -14,7 +14,7 @@ from sklearn.decomposition import PCA
 from matplotlib import cm
 
 from . import geomesh
-from ..processing.pointcloud.projection import points3d_to_image
+from ..processing.pointcloud.projection import points3d_to_image, project_to_image
 from ..crs.geocrs import GeoCrs, NoneCRS
 from ..crs.geocrstransformer import GeoCrsTransformer
 from ..crs.geocrs import NoneCRS
@@ -405,9 +405,8 @@ class GeoPointCloud(Tiles3dContentObject, GeoPointCloudReadable, GeoPointCloudWr
     def filter_by_voxel_grid(self, voxel_grid: 'GeoVoxelGrid') -> 'GeoPointCloud':
         return self[create_filter_from_voxel_grid(self, voxel_grid)]
 
-    def to_image(self, pixel_size: float, up_axis: int = 1, value_field: Optional[str] = None, empty_value=0,
-                 ufunc: Optional[np.ufunc] = None, interpolate_holes: bool = False) -> Tuple[np.ndarray, np.ndarray]:
-        xyz = self.xyz.to_numpy()
+    def _choose_values_and_ufunc(self, value_field: Optional[str], ufunc: Optional[np.ufunc] = None,
+                                 up_axis: int = 2) -> Tuple[Union[float, int, np.ndarray], Optional[np.ufunc]]:
         if value_field is None:
             values = 1
         elif value_field == 'height':
@@ -415,7 +414,13 @@ class GeoPointCloud(Tiles3dContentObject, GeoPointCloudReadable, GeoPointCloudWr
             if ufunc is None:
                 ufunc = np.maximum
         else:
-            values = self.data[value_field]            
+            values = self.data[value_field]
+        return values, ufunc
+
+    def to_image(self, pixel_size: float, up_axis: int = 1, value_field: Optional[str] = None, empty_value=0,
+                 ufunc: Optional[np.ufunc] = None, interpolate_holes: bool = False) -> Tuple[np.ndarray, np.ndarray]:
+        xyz = self.xyz.to_numpy()
+        values, ufunc = self._choose_values_and_ufunc(value_field=value_field, ufunc=ufunc, up_axis=up_axis)
         res = points3d_to_image(pixel_size=pixel_size, xyz=xyz, values=values, up_axis=up_axis,
                                 empty_value=empty_value, ufunc=ufunc, return_mask=interpolate_holes)
         if not interpolate_holes:
@@ -434,6 +439,24 @@ class GeoPointCloud(Tiles3dContentObject, GeoPointCloudReadable, GeoPointCloudWr
         img_geo_size = np.array(img.shape[:2]) * pixel_size
         georect = GeoRect.from_min_max(origin, origin + img_geo_size, crs=self.crs)
         return GeoRaster(georect, img)
+
+    def project_to_georaster(self, georaster: GeoRaster,value_field: Optional[str] = 'height', ufunc: Optional[np.ufunc] = None,
+                             interpolate_holes: bool = False) -> GeoRaster:
+        if self._crs.is_geocentric:
+            raise ValueError("Point clouds in geocentric coordinates should not be projected down along the z-axis into a GeoRaster")
+        pc = self
+        if pc._crs != georaster.crs:
+            pc = pc.to_crs(georaster.crs, inplace=False)
+        values, ufunc = self._choose_values_and_ufunc(value_field=value_field, ufunc=ufunc, up_axis=2)
+        res = project_to_image(pc.xyz.to_numpy(), georaster.data, transform=georaster.inv_transform,
+                               values=values, up_axis = 2, ufunc=ufunc, return_mask = interpolate_holes)
+        if interpolate_holes:
+            img, mask = res
+            img = img_interpolation.interpolate_holes(img, mask)
+        else:
+            img = res
+        georaster.data = img
+        return georaster
 
     def filter_by_image(self, image: np.ndarray, image_origin: Tuple[float, float] = (0, 0),
                         pixel_size: float = 1, up_axis: int = 2) -> 'GeoPointCloud':
@@ -480,7 +503,7 @@ class GeoPointCloud(Tiles3dContentObject, GeoPointCloudReadable, GeoPointCloudWr
         return dict([(name, column.dtype) for name, column in self.data.items()])
 
     def extend(self, other: 'GeoPointCloud', keep_other=True):
-        if self.data_scheme() != other.data_scheme():
+        if self.data_scheme != other.data_scheme:
             raise ValueError("The point clouds have different attribute names or types")
         self.data = pd.concat([self.data, other.data])
         if not keep_other:
@@ -608,13 +631,13 @@ class GeoPointCloud(Tiles3dContentObject, GeoPointCloudReadable, GeoPointCloudWr
             v = pptk.viewer(self.xyz.to_numpy(), rgb)
         return v
 
-    def _plot_o3d(self, function, categorical_colors_attribute: Optional[str] = None, color_map=cm.tab20, *args,
+    def _plot_o3d(self, function, class_attribute: Optional[str] = None, color_map=cm.tab20, *args,
                   **kwargs):
         xyz_o3d = o3d.utility.Vector3dVector(self.xyz.to_numpy())
         pc3d = o3d.geometry.PointCloud()
         pc3d.points = xyz_o3d
-        if categorical_colors_attribute is not None:
-            rgb = self._categorical_colors(categorical_colors_attribute, color_map=color_map)
+        if class_attribute is not None:
+            rgb = self._categorical_colors(class_attribute, color_map=color_map)
             pc3d.colors = o3d.utility.Vector3dVector(rgb)
         elif self.rgb is not None:
             rgb = self.rgb.to_numpy().astype(float)
@@ -624,12 +647,12 @@ class GeoPointCloud(Tiles3dContentObject, GeoPointCloudReadable, GeoPointCloudWr
             pc3d.normals = o3d.utility.Vector3dVector(self.normals_xyz.to_numpy())
         function([pc3d], *args, **kwargs)
 
-    def plot_o3d(self, categorical_colors_attribute: Optional[str] = None, color_map=cm.tab20, *args, **kwargs):
-        self._plot_o3d(o3d.visualization.draw_geometries, categorical_colors_attribute, color_map, *args, **kwargs)
+    def plot_o3d(self, class_attribute: Optional[str] = None, color_map=cm.tab20, *args, **kwargs):
+        self._plot_o3d(o3d.visualization.draw_geometries, class_attribute, color_map, *args, **kwargs)
 
-    def plot_o3dj(self, categorical_colors_attribute: Optional[str] = None, color_map=cm.tab20, *args, **kwargs):
+    def plot_o3dj(self, class_attribute: Optional[str] = None, color_map=cm.tab20, *args, **kwargs):
         from open3d.web_visualizer import draw as draw_jupyter
-        self._plot_o3d(draw_jupyter, categorical_colors_attribute, color_map, *args, **kwargs)
+        self._plot_o3d(draw_jupyter, class_attribute, color_map, *args, **kwargs)
 
     @property
     def content_type_tile3d(self) -> Tiles3dContentType:

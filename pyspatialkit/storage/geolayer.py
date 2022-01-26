@@ -4,6 +4,7 @@ from abc import ABC, abstractmethod
 import shutil
 
 from ..globals import DEFAULT_CRS
+from ..utils.logging import raise_warning
 
 class GeoLayerOwner(ABC):
     @abstractmethod
@@ -16,6 +17,8 @@ class GeoLayer(ABC):
         self.directory_path = Path(directory_path)
         self.owner: Optional[GeoLayerOwner] = None
         if self.directory_path.is_dir():
+            if len(args)>0 or len(kwargs)>0:
+                raise_warning("Layer already exists on storage. Loading existing layer. Ignoring intialization arguments!")
             self.load()
         else:
             self.directory_path.mkdir(parents=True)

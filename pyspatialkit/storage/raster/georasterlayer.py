@@ -73,7 +73,7 @@ class GeoRasterLayer(GeoLayer):
                                         directory_path=self.directory_path / BACKEND_DIRECTORY_NAME, fill_value=self.fill_value, 
                                         pixel_size_xy=self.pixel_size_xy, build_pyramid=self.build_pyramid)
 
-    def get_raster_for_rect(self, georect: GeoRect, resolution_rc: Optional[Tuple[int,int]]=None, band=None, no_data_value=0) -> GeoRaster:
+    def get_data(self, georect: GeoRect, resolution_rc: Optional[Tuple[int,int]]=None, band=None, no_data_value=0) -> GeoRaster:
         if georect.crs != self.crs:
             georect.to_crs(self.crs)
         bounds = np.array(georect.get_bounds()).astype(int)
@@ -106,10 +106,10 @@ class GeoRasterLayer(GeoLayer):
             result_raster.merge_projected_other(bounds_raster)
             return result_raster
 
-    def writer_raster_data(self, georaster: GeoRaster):
+    def write_data(self, georaster: GeoRaster):
         if georaster.crs != self.crs:
             georaster.to_crs(self.crs)
-        current = self.get_raster_for_rect(georect=GeoRect.from_bounds(georaster.georect.get_bounds(), georaster.crs))
+        current = self.get_data(georect=GeoRect.from_bounds(georaster.georect.get_bounds(), georaster.crs))
         current.merge_projected_other(georaster)
         bounds = np.array(georaster.georect.get_bounds()).astype(int)
         self.backend.write_data(bounds, current.data)
@@ -132,7 +132,7 @@ class GeoRasterLayer(GeoLayer):
             output_layer = self
         output_layer.begin_pyramid_update_transaction()
         for tile in tiler:
-            georaster = self.get_raster_for_rect(tile,  resolution_rc=resolution_rc, band=band, no_data_value=no_data_value,)
+            georaster = self.get_data(tile,  resolution_rc=resolution_rc, band=band, no_data_value=no_data_value,)
             georaster = transformer(georaster)
             if georaster is not None:
                 output_layer.writer_raster_data(georaster)

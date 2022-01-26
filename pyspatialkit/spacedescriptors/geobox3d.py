@@ -9,7 +9,8 @@ import sentinelhub
 from ..crs.geocrs import GeoCrs, NoneCRS
 from ..crs.geocrstransformer import GeoCrsTransformer
 from .tiles3dboundingvolume import Tiles3dBoundingVolume
-from ..globals import DEFAULT_CRS
+from ..globals import get_default_crs
+from .geobox2d import GeoBox2d
 
 CRS_4979 = GeoCrs.from_epsg(4979)
 CRS_4978 = GeoCrs.from_epsg(4978)
@@ -18,8 +19,10 @@ class GeoBox3d(Tiles3dBoundingVolume):
     """Describing a Volume in 3D space. Described by a min and max point and a crs.
     """
 
-    def __init__(self, min: Tuple[float, float, float], max: Tuple[float, float ,float], crs: GeoCrs = DEFAULT_CRS,
+    def __init__(self, min: Tuple[float, float, float], max: Tuple[float, float ,float], crs: Optional[GeoCrs] = None,
                   to_epsg4978_transformer: Optional[GeoCrsTransformer] = None, to_epsg4979_transformer: Optional[GeoCrsTransformer] = None):
+        if crs is None:
+            crs = get_default_crs()
         self.crs = crs
         if to_epsg4978_transformer is not None:
             if not (to_epsg4978_transformer.from_crs == crs and to_epsg4978_transformer.to_crs == CRS_4978):
@@ -33,11 +36,18 @@ class GeoBox3d(Tiles3dBoundingVolume):
         self.bounds = np.array([*min, *max])
 
     @classmethod
-    def from_bounds(cls, bounds: Tuple[float, float, float, float, float, float], crs: GeoCrs = DEFAULT_CRS,
+    def from_bounds(cls, bounds: Tuple[float, float, float, float, float, float], crs: Optional[GeoCrs] = None,
                      to_epsg4978_transformer: Optional[GeoCrsTransformer] = None,
                      to_epsg4979_transformer: Optional[GeoCrsTransformer] = None):
         return GeoBox3d(min=bounds[:3], max=bounds[3:], crs=crs, to_epsg4978_transformer=to_epsg4978_transformer,
                         to_epsg4979_transformer=to_epsg4979_transformer)
+
+    @classmethod 
+    def from_geobox2d(cls, geobox: GeoBox2d, min_height:float, max_height: float,
+                      to_epsg4978_transformer: Optional[GeoCrsTransformer] = None,
+                      to_epsg4979_transformer: Optional[GeoCrsTransformer] = None):
+        bounds = [*geobox.min, min_height, *geobox.max, max_height]
+        return cls.from_bounds(bounds, crs=geobox.crs, to_epsg4978_transformer=to_epsg4978_transformer, to_epsg4979_transformer=to_epsg4979_transformer)
 
     @property
     def min(self):
@@ -65,6 +75,11 @@ class GeoBox3d(Tiles3dBoundingVolume):
 
     def get_edge_lengths(self) -> np.ndarray:
         return self.max - self.min
+
+    def substract_borders(self, border_size: Tuple[float, float, float]) -> 'GeoBox3d':
+        border_size = np.array(border_size)
+        return GeoBox3d(self.bounds[:3] + border_size, self.bounds[3:] - border_size, self.crs)
+
 
     def to_tiles3d_bounding_volume_dict(self) -> Dict[str, List[float]]:
         if not self.crs.is_geocentric:

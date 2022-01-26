@@ -16,6 +16,8 @@ from ..spacedescriptors.georect import GeoRect
 from ..utils.geopandas import projective_transform
 from ..utils.rasterio import save_np_array_as_geotiff
 from ..utils.projection import project_skimage
+from .geoshape import GeoShape
+from ..utils.logging import raise_warning
 
 class GeoRaster:
 
@@ -48,6 +50,9 @@ class GeoRaster:
         georect = GeoRect(bl, tr, br, tl, crs=crs)
         return GeoRaster(georect=georect, data=raster_data)
 
+    def copy(self):
+        return GeoRaster(self.georect.copy(), self.data.copy())
+
     @property
     def crs(self) -> GeoCrs:
         return self.georect.crs
@@ -75,7 +80,7 @@ class GeoRaster:
         project_skimage(other.data, self.data, inv_mat, other_no_data_value, other_mask,
                         self_no_data_value, self_mask)
 
-    def rasterize_shapes(self, shapes: Union[GeoSeries, GeoDataFrame], pixel_value=1, buffer=0):
+    def rasterize_shapes(self, shapes: Union[GeoShape, GeoSeries, GeoDataFrame], pixel_value=1, buffer=0):
         if shapes.size == 0:
             return
         if shapes.crs != self.crs.proj_crs:
@@ -87,8 +92,20 @@ class GeoRaster:
         shapes = projective_transform(shapes, np.linalg.inv(self.transform))
         self.data = rasterize(shapes, self.data)
 
-    def plot_plt(self):
-        plt.imshow(self.data)
+    def rasterize_shape(self, shape: GeoShape, pixel_value=1, buffer=0):
+        shapes = pd.GeodataFrame(geometry=shape.shape, crs=shape.crs.proj_crs)
+        self.rasterize_shapes(shapes, pixel_value, buffer)
+
+    def plot_plt(self, ax: Optional[plt.Axes] = None):
+        if ax is None:
+            fig, ax = plt.subplots()
+        data = self.data
+        if data.shape[2] == 4:
+            data = self.data[:,:,:3]
+        if data.shape[2]==3 and data.dtype != np.uint8:
+            data = data.astype(np.uint8)
+            raise_warning("3 channel image with dtype not np.uint8. Transformed dtype to np.uint8!!!", UserWarning)
+        ax.imshow(data)
     
     def plot(self):
         self.plot_plt()
@@ -99,6 +116,10 @@ class GeoRaster:
     @property
     def transform(self):
         return self._transform
+
+    @property
+    def inv_transform(self):
+        return np.linalg.inv(self._transform)
 
     @property
     def shape(self)-> Union[Tuple[int, int], Tuple[int, int, int]]:

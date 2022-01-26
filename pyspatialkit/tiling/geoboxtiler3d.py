@@ -21,12 +21,12 @@ class GeoBoxTile3dIterator:
         self
 
     @abstractmethod
-    def __next__(self) -> GeoBox3d:
+    def __next__(self) -> Tuple[GeoBox3d, GeoBox3d]:
         if self.current >= len(self.tiler.tiles):
             raise StopIteration
         tmp = self.tiler.tiles[self.current]
         self.current+=1
-        return tmp
+        return tmp, tmp.substract_borders(self.tiler.border_size)
 
 
 class GeoBoxTiler3d:
@@ -48,7 +48,7 @@ class GeoBoxTiler3d:
             else:
                 self.border_size = np.array(border_size)
         else:
-            self.border_size = np.array(border_size)[:2]
+            self.border_size = np.array([border_size[0], border_size[1], 0])
 
     @abstractmethod
     def _generate_tiles(self) -> GeoBox3dCollection:
@@ -58,9 +58,9 @@ class GeoBoxTiler3d:
                 b = bounds[i]
                 bounds[i] = (b[0], b[1], self.height_span[0], b[2], b[3], self.height_span[1])
         tiles = []
-        inner_size = self.raster_size - 2 * self.border_size
+        inner_size = self.raster_size - 2 * self.border_size[:self.raster_size.shape[0]]
         if self.raster_size.shape[0] == 2:
-            origins = raster_bounds2d(bounds, self.raster_size, border_size=self.border_size)
+            origins = raster_bounds2d(bounds, self.raster_size, border_size=self.border_size[:2])
             mins = np.concatenate((origins, np.full((origins.shape[0], 1), self.height_span[0])), axis=1)
             maxs = mins + np.array([self.raster_size[0], self.raster_size[1], self.height_span[1] - self.height_span[0]])
         else:
