@@ -11,6 +11,7 @@ import geopandas as gpd
 from ..crs.geocrs import GeoCrs
 from ..crs.geocrstransformer import GeoCrsTransformer
 from ..globals import GEOVIEWS_BACK_MAP
+from ..spacedescriptors.georect import GeoRect
 
 class GeoShape:
 
@@ -43,6 +44,10 @@ class GeoShape:
             raise AttributeError("Cannot create 2d shape for bounds in geocentric CRS!")
         else:
             return cls.from_bounds_2d((*bounds[:2], *bounds[3:5]), crs)
+
+    @classmethod
+    def from_georect(cls, georect: GeoRect):
+        return GeoShape(shape=georect.to_shapely(), crs=georect.crs)
 
     @classmethod
     def from_bounds_2d(cls, bounds: Tuple[float, float, float, float], crs: GeoCrs) -> 'GeoShape':

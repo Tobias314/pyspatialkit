@@ -8,6 +8,7 @@ from ..dataobjects.geoshape import GeoShape
 from ..spacedescriptors.georect import GeoRect
 from ..crs.geocrs import GeoCrs
 from ..utils.tiling import raster_bounds2d, bounds_from_polygon
+from ..spacedescriptors.geobox2d import GeoBox2d
 
 
 class GeoBoxTiler2d(GeoTiler2d):
@@ -25,15 +26,18 @@ class GeoBoxTiler2d(GeoTiler2d):
     def __iter__(self) -> 'GeoBoxTile2dIterator':
         return GeoBoxTile2dIterator(self)
 
+    def __len__(self) -> int:
+        return len(self.tiles)
+
     def _generate_tiles(self) -> List[GeoRect]:
         bounds = bounds_from_polygon(self.aoi)
         tiles = []
-        inner_size = self.raster_size - 2 * self.border_size
 
         origins = raster_bounds2d(bounds, self.raster_size, border_size=self.border_size)
         for origin in origins:
-            tile = GeoRect(origin - self.border_size, origin + self.raster_size + self.border_size, crs=self.reference_crs)
-            if self.aoi.shape.intersects(tile.to_shapely()):
+            #tile = GeoRect(origin - self.border_size, origin + self.raster_size + self.border_size, crs=self.reference_crs)
+            tile = GeoBox2d(origin, origin + self.raster_size + 2 * self.border_size, crs=self.reference_crs)
+            if self.aoi.shape.intersects(tile.to_georect().to_shapely()):
                 tiles.append(tile)
         return tiles
 
@@ -46,7 +50,6 @@ class GeoBoxTiler2d(GeoTiler2d):
             self._tiles = self._generate_tiles()
         return self._tiles
 
-
 class GeoBoxTile2dIterator:
 
     def __init__(self, geoboxtiler2d: GeoBoxTiler2d):
@@ -56,7 +59,7 @@ class GeoBoxTile2dIterator:
     def __iter__(self) -> 'GeoBoxTile2dIterator':
         return self
 
-    def __next__(self) -> GeoRect:
+    def __next__(self) -> GeoBox2d:
         if self.current >= len(self.tiler.tiles):
             raise StopIteration
         tmp = self.tiler.tiles[self.current]

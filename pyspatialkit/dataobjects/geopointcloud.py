@@ -46,7 +46,7 @@ class GeoPointCloudReadable(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def get_data_for_geobox3d(self, geobox: GeoBox3d, attributes: Optional[List[str]] = None)-> 'GeoPointCloud':
+    def get_data(self, geobox: GeoBox3d, attributes: Optional[List[str]] = None)-> 'GeoPointCloud':
         raise NotImplementedError
 
 
@@ -189,7 +189,7 @@ class GeoPointCloud(Tiles3dContentObject, GeoPointCloudReadable, GeoPointCloudWr
     def crs(self)-> GeoCrs:
         return self._crs
 
-    def get_data_for_geobox3d(self, geobox: GeoBox3d, attributes: Optional[List[str]] = None)-> 'GeoPointCloud':
+    def get_data(self, geobox: GeoBox3d, attributes: Optional[List[str]] = None)-> 'GeoPointCloud':
         mi=geobox.min
         ma=geobox.max
         mask = (self.x > mi[0]) & (self.x < ma[0])
@@ -406,18 +406,18 @@ class GeoPointCloud(Tiles3dContentObject, GeoPointCloudReadable, GeoPointCloudWr
         return self[create_filter_from_voxel_grid(self, voxel_grid)]
 
     def _choose_values_and_ufunc(self, value_field: Optional[str], ufunc: Optional[np.ufunc] = None,
-                                 up_axis: int = 2) -> Tuple[Union[float, int, np.ndarray], Optional[np.ufunc]]:
+                                 up_axis: int = 2) -> Tuple[Optional[Union[float, int, np.ndarray]], Optional[np.ufunc]]:
         if value_field is None:
             values = 1
         elif value_field == 'height':
-            values = self.xyz.to_numpy()[:, up_axis]
+            values = None
             if ufunc is None:
                 ufunc = np.maximum
         else:
             values = self.data[value_field]
         return values, ufunc
 
-    def to_image(self, pixel_size: float, up_axis: int = 1, value_field: Optional[str] = None, empty_value=0,
+    def to_image(self, pixel_size: float, up_axis: int = 2, value_field: Optional[str] = None, empty_value=0,
                  ufunc: Optional[np.ufunc] = None, interpolate_holes: bool = False) -> Tuple[np.ndarray, np.ndarray]:
         xyz = self.xyz.to_numpy()
         values, ufunc = self._choose_values_and_ufunc(value_field=value_field, ufunc=ufunc, up_axis=up_axis)
@@ -450,11 +450,9 @@ class GeoPointCloud(Tiles3dContentObject, GeoPointCloudReadable, GeoPointCloudWr
         values, ufunc = self._choose_values_and_ufunc(value_field=value_field, ufunc=ufunc, up_axis=2)
         res = project_to_image(pc.xyz.to_numpy(), georaster.data, transform=georaster.inv_transform,
                                values=values, up_axis = 2, ufunc=ufunc, return_mask = interpolate_holes)
+        img, mask = res
         if interpolate_holes:
-            img, mask = res
             img = img_interpolation.interpolate_holes(img, mask)
-        else:
-            img = res
         georaster.data = img
         return georaster
 

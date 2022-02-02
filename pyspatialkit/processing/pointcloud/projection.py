@@ -12,7 +12,7 @@ def project_points_to_plane(points: np.ndarray, plane_equation: np.ndarray):
 def project_down(s_indices: np.ndarray, values: Union[int,float,np.ndarray],
                  img: np.ndarray, check_bounds: bool = False, ufunc: Optional[np.ufunc] = None, 
                  return_mask: bool = False) -> Tuple[np.ndarray, Optional[np.ndarray]]:
-    i1, i2 = img.shape[0] - 1 - s_indices[:, 1], s_indices[:, 0]
+    i1, i2 = s_indices[:, 0], s_indices[:, 1]
     if check_bounds:
         bounds_mask = (i1 >= 0) & (i1< img.shape[0]) & (i2 >= 0) & (i2< img.shape[1])
         i1 = i1[bounds_mask]
@@ -32,14 +32,14 @@ def project_down(s_indices: np.ndarray, values: Union[int,float,np.ndarray],
 def project_to_image(xyz: np.ndarray, image: np.ndarray, transform: Optional[np.ndarray] = None,
                      values: Optional[Union[int,float,np.ndarray]] = None, up_axis: int = 1,
                      ufunc: Optional[np.ufunc] = None,
-                     return_mask: bool = False) -> Union[np.ndarray, Tuple[np.ndarray, np.ndarray]]:
+                     return_mask: bool = False) -> Tuple[np.ndarray, Optional[np.ndarray]]:
     plane_axis = [0, 1, 2]
     del plane_axis[up_axis]
     s_indices = xyz[:, (plane_axis[0], plane_axis[1])]
     s_indices = np.concatenate([s_indices, np.ones((s_indices.shape[0], 1))], axis=1)
     s_indices = (s_indices @ transform.T).astype(int)
     if values is None:
-        values = xyz[:, 2]
+        values = xyz[:, up_axis]
     if len(values.shape) == 1:
         values = values[:, np.newaxis]
     return project_down(s_indices=s_indices, values=values, img=image, check_bounds=True, ufunc=ufunc, return_mask=return_mask)
@@ -58,17 +58,20 @@ def points3d_to_image(xyz: np.ndarray, pixel_size: float,
     s_indices = ((s_indices - np.array(image_origin)) / pixel_size).astype(int)
     max_corner = s_indices.max(axis=0)
     img_size = np.flip((max_corner + 1).astype(int),0)
+    img_size = [img_size[0], img_size[1], 1 if values is None or len(values.shape)<2 else values.shape[1]]
     if values is None:
-        image = np.full(img_size, empty_value, dtype=xyz.dtype)
+        img = np.full(img_size, empty_value, dtype=xyz.dtype)
     elif isinstance(values, np.ndarray):
-        image = np.full(img_size, empty_value, dtype=values.dtype)
+        img = np.full(img_size, empty_value, dtype=values.dtype)
     else:
-        image = np.full(img_size, empty_value, dtype=type(values))
+        img = np.full(img_size, empty_value, dtype=type(values))
     if values is None:
-        values = xyz[:, 2]
+        values = xyz[:, up_axis]
     if len(values.shape) == 1:
         values = values[:, np.newaxis]
-    img, mask = project_down(s_indices=s_indices, values=values, img=image, check_bounds=False, ufunc=ufunc, return_mask=return_mask)
+    s_indices = np.flip(s_indices, axis=1)
+    s_indices[:,0] = img.shape[0] - 1 - s_indices[:, 0]
+    img, mask = project_down(s_indices=s_indices, values=values, img=img, check_bounds=False, ufunc=ufunc, return_mask=return_mask)
     if return_mask:
         return img, image_origin, mask
     else:

@@ -62,10 +62,10 @@ class GeoBoxTiler3d:
         if self.raster_size.shape[0] == 2:
             origins = raster_bounds2d(bounds, self.raster_size, border_size=self.border_size[:2])
             mins = np.concatenate((origins, np.full((origins.shape[0], 1), self.height_span[0])), axis=1)
-            maxs = mins + np.array([self.raster_size[0], self.raster_size[1], self.height_span[1] - self.height_span[0]])
+            maxs = mins + np.array([self.raster_size[0] + 2*border_size[0], self.raster_size[1] + 2*border_size[1], self.height_span[1] - self.height_span[0]])
         else:
             mins = raster_bounds3d(bounds, self.raster_size, border_size=self.border_size)
-            maxs = mins + np.array([self.raster_size[0], self.raster_size[1], self.height_span[1] - self.height_span[0]])
+            maxs = mins + np.array([self.raster_size[0] + 2*border_size[0], self.raster_size[1] + 2*border_size[1], self.raster_size[2] + 2*border_size[2]])
         return GeoBox3dCollection.from_mins_maxs(mins, maxs, self.crs)
 
     def __iter__(self) -> GeoBoxTile3dIterator:

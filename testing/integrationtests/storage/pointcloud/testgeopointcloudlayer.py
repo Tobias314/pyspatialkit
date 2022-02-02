@@ -40,7 +40,7 @@ class TestGeoPointCloudLayer(unittest.TestCase):
 
     def test_read_write(self):
         self.pclayer.write_data(self.pc)
-        read_pc = self.pclayer.get_data_for_geobox3d(GeoBox3d(min=(50,50,50), max=(75,75,75), crs=NoneCRS()))
+        read_pc = self.pclayer.get_data(GeoBox3d(min=(50,50,50), max=(75,75,75), crs=NoneCRS()))
         self.assertEqual(read_pc.shape, (26,6))
         self.assertEqual(read_pc.x.to_numpy().mean(), 62.5)
 

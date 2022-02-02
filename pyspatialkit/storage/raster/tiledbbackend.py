@@ -149,7 +149,7 @@ class TileDbBackend:
         indexes = (indexes / 2**layer).astype(int)
         t1 = time.time()
         res = self._read_array_region(self.layers[layer][1], (indexes[0],indexes[2]),(indexes[1],indexes[3]))
-        print("db request took: {}".format(time.time() - t1))
+        #print("db request took: {}".format(time.time() - t1))
         return res        
 
     def delete_permanently(self):

@@ -35,7 +35,7 @@ class GeoPointCloudTile3d(Tile3d):
 
     def get_content(self) -> Tiles3dContentObject:
         if self.level == 0:
-            pcl = self.tileset.point_cloud.get_data_for_geobox3d(self.bbox)
+            pcl = self.tileset.point_cloud.get_data(self.bbox)
             pcl.to_crs(crs_transformer=self.tileset.to_epsg4978_transformer, inplace=True)
             return pcl
         else:

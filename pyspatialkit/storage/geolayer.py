@@ -25,6 +25,13 @@ class GeoLayer(ABC):
             self.initialize(*args, **kwargs)
             self.persist()
 
+    @classmethod
+    def from_path(cls, directory_path: str):
+        print(type(cls))
+        if not Path(directory_path).is_dir():
+            ValueError("Directory path containing layer data could not be found!")
+        return cls(directory_path)
+    
     def load(self, directory_path: Optional[Path] = None):
         if directory_path is None:
             directory_path = self.directory_path

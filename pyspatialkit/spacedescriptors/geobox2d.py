@@ -11,10 +11,10 @@ from ..globals import get_default_crs
 from .georect import GeoRect
 
 class GeoBox2d:
-    """Describing a Volume in 3D space. Described by a min and max point and a crs.
+    """Describing a box area in 2D space. Described by a min and max point and a crs.
     """
 
-    def __init__(self, min: Tuple[float, float, float], max: Tuple[float, float ,float], crs: Optional[GeoCrs] = None):
+    def __init__(self, min: Tuple[float, float], max: Tuple[float, float], crs: Optional[GeoCrs] = None):
         if crs is None:
             crs = get_default_crs()
         self.crs = crs
@@ -42,6 +42,9 @@ class GeoBox2d:
     @property
     def center(self):
         return (self.max + self.min) / 2
+
+    def to_georect(self):
+        return GeoRect(self.min, self.max, crs=self.crs)
 
     def get_edge_lengths(self) -> np.ndarray:
         return self.max - self.min
