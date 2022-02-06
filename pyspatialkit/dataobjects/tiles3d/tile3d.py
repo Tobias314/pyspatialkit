@@ -26,6 +26,7 @@ class Tile3d(ABC):
         self._geometric_error: Optional[float] = None
         self._refine: Optional[RefinementType] = None
         self._content: Optional[Tiles3dContentObject] = None
+        self._is_content_initialized = False
         self._content_type: Optional[Tiles3dContentType] = None
         self._content_bounding_volume: Optional[Tiles3dBoundingVolume] = None
         self._children: Optional[List[Tile3d]] = None
@@ -89,8 +90,9 @@ class Tile3d(ABC):
 
     @property
     def content(self) -> Tiles3dContentObject:
-        if self._content is None:
+        if self._is_content_initialized is False:
             self._content = self.get_content()
+            self._is_content_initialized = True
         if self._content is not None and self.content_type != self._content.content_type_tile3d:
             raise TypeError("The type of the content object does not match the content type set for this tile!")
         return self._content
@@ -155,21 +157,28 @@ class Tile3d(ABC):
             children_dicts.append(child_dict)
             end_points += e_pts
         res_dict = self._generate_tile_dict(tile_content_uri=tile_content_uri, children=children_dicts)
-        callback(self)
+        if callback is not None:
+            callback(self)
         return res_dict, end_points
 
-    def _generate_tile_dict(self, tile_content_uri: str,
-                             children: List[Dict]) -> Dict[str, Union[str, float, int, Dict, List, Tuple]]:
+    def _generate_tile_dict_header(self, children: List[Dict]) -> Dict[str, Union[str, float, int, Dict, List, Tuple]]:
         res = {
             'boundingVolume': self.bounding_volume.to_tiles3d_bounding_volume_dict(),
             'geometricError':self.geometric_error,
             'refine':self.refine.name,
             'children': children,
         }
+        return res
+
+    def _generate_tile_dict(self, tile_content_uri: str, children: List[Dict]) -> Dict[str, Union[str, float, int, Dict, List, Tuple]]:
+        res = self._generate_tile_dict_header(children)
         if self.content is not None:
             res['content'] = {'boundingVolume': self.content_bounding_volume.to_tiles3d_bounding_volume_dict(),
                               'uri': tile_content_uri}
         return res
 
     def _generate_link_proxy_tile_dict(self, tile_uri: str) -> Dict[str, Union[str, float, int, Dict, List, Tuple]]:
-        return self._generate_tile_dict(content_uri=tile_uri, children=[])
+        res = self._generate_tile_dict_header([])
+        res['content'] = {'boundingVolume': self.bounding_volume.to_tiles3d_bounding_volume_dict(),
+                          'uri': tile_uri}
+        return res

@@ -17,6 +17,7 @@ import uvicorn
 from ....storage.geostorage import GeoStorage
 from .geostorageroutes import router as geostorage_router
 from .rasterroutes import router as raster_router
+from .pointcloudroutes import router as point_cloud_router
 from .staticroutes import router as static_router
 
 #frontend_path = Path(os.path.realpath(__file__)).parents[1] / 'frontend/'
@@ -57,6 +58,7 @@ def start_server(geostorage: GeoStorage) -> None:
     app.include_router(static_router)
     app.include_router(geostorage_router)
     app.include_router(raster_router)
+    app.include_router(point_cloud_router)
     app.mount("/static", StaticFiles(directory=frontend_path), name="static")
     app.mount("/Widgets", StaticFiles(directory=frontend_path/"Widgets"), name="static")
     my_middleware = LowerCaseMiddleware()

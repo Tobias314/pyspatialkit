@@ -27,6 +27,7 @@ from ...spacedescriptors.geobox2d import GeoBox2d
 from ...dataobjects.geopointcloud import GeoPointCloud, GeoPointCloudReadable, GeoPointCloudWritable
 from ...tiling.geoboxtiler3d import GeoBoxTiler3d
 from ...utils.logging import dbg
+from ...dataobjects.tiles3d.pointcloud.geopointcloudtileset3d import GeoPointCloudTileset3d
 
 
 BACKEND_DIRECTORY_NAME = "backend"
@@ -39,7 +40,7 @@ DEFAULT_POINT_PER_METER_1D = 300
 class GeoPointCloudLayer(GeoLayer, GeoPointCloudReadable, GeoPointCloudWritable):
 
     def initialize(self, data_scheme: Dict[str, np.dtype], crs: GeoCrs = DEFAULT_CRS, bounds: Optional[Tuple[float, float, float, float, float, float]] = None,
-                   point_density=0.01, build_pyramid: bool = True, rgb_max:float = 1):
+                   point_density=0.01, build_pyramid: bool = True, rgb_max:float = 255):
         self._data_scheme = data_scheme
         self._crs = crs
         if bounds is None:
@@ -58,6 +59,7 @@ class GeoPointCloudLayer(GeoLayer, GeoPointCloudReadable, GeoPointCloudWritable)
                                            data_scheme=self._data_scheme,
                                            space_tile_size=self.backend_space_tile_size,
                                            build_pyramid=self.build_pyramid)
+        self._visualizer_tileset = None
 
     def persist_data(self, dir_path: Path):
         config = {}
@@ -86,6 +88,7 @@ class GeoPointCloudLayer(GeoLayer, GeoPointCloudReadable, GeoPointCloudWritable)
                                                 data_scheme=self._data_scheme,
                                                 space_tile_size=self.backend_space_tile_size,
                                                 build_pyramid=self.build_pyramid)
+        self._visualizer_tileset = None
 
     def get_data(self, geobox: Union[GeoBox3d, GeoBox2d], attributes: Optional[List[str]] = None) -> GeoPointCloud:
         if isinstance(geobox, GeoBox2d):
@@ -131,6 +134,13 @@ class GeoPointCloudLayer(GeoLayer, GeoPointCloudReadable, GeoPointCloudWritable)
 
     def _delete_permanently(self):
         self.backend.delete_permanently()
+
+    @property
+    def visualizer_tileset(self):
+        if self._visualizer_tileset is None:
+            self._visualizer_tileset = GeoPointCloudTileset3d(self, tile_size=self.backend_space_tile_size,
+                                                              geometric_error_multiplier=10*self.point_density)
+        return self._visualizer_tileset
 
     @property
     def name(self):

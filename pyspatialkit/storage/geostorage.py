@@ -11,6 +11,7 @@ from .geolayer import GeoLayer, GeoLayerOwner
 from ..utils.logging import logger
 from ..utils.fileio import force_delete_directory
 from .raster.georasterlayer import GeoRasterLayer
+from .pointcloud.geopointcloudlayer import GeoPointCloudLayer
 from ..crs.geocrs import GeoCrs
 from ..globals import DEFAULT_CRS
 
@@ -43,6 +44,9 @@ class GeoStorage(GeoLayerOwner):
         with open(self.directory_path / ".config", 'w') as outfile:
             json.dump(configuration, outfile)
 
+    def has_layer(self, layer_name: str):
+        return layer_name in self.layers
+
     def get_layer(self, layer_name: str):
         if layer_name not in self.layers:
             logger().warning("A layer with this name does not exist, returning None")
@@ -73,7 +77,10 @@ class GeoStorage(GeoLayerOwner):
                          bounds: Optional[Tuple[float, float, float, float]] = None, fill_value = 0,
                          pixel_size_xy: Tuple[float, float] = (1,1,), build_pyramid:bool=True) -> GeoRasterLayer:
         return self._add_layer(layer_name=layer_name, layer_type=GeoRasterLayer, num_bands=num_bands, dtype=dtype, crs=crs,
-                                bounds=bounds, fill_value=fill_value,pixel_size_xy=pixel_size_xy, build_pyramid=build_pyramid)
+                               bounds=bounds, fill_value=fill_value,pixel_size_xy=pixel_size_xy, build_pyramid=build_pyramid)
+
+    def add_point_cloud_layer(self, layer_name: str, *args, **kwargs):
+        return self._add_layer(layer_name=layer_name, layer_type=GeoPointCloudLayer, *args, **kwargs)
 
     def plot_cesium(self):
         from ..visualization.cesium.backend.server import start_server #We do it here to avoid cyclic dependencies

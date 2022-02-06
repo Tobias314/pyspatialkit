@@ -61,12 +61,12 @@ class GeoPointCloud(Tiles3dContentObject, GeoPointCloudReadable, GeoPointCloudWr
 
     def __init__(self):
         self.data = pd.DataFrame(columns=['x', 'y', 'z'])
-        self.rgb_max = 1.0
+        self.rgb_max = 255
         self._crs = NoneCRS
         self._reset_cached()
 
     @classmethod
-    def from_numpy_arrays(self, xyz: np.ndarray, crs: GeoCrs=NoneCRS, rgb: Union[np.ndarray, None] = None, rgb_max=1.0,
+    def from_numpy_arrays(self, xyz: np.ndarray, crs: GeoCrs=NoneCRS, rgb: Union[np.ndarray, None] = None, rgb_max=255,
                           normals_xyz: Union[np.ndarray, None] = None, curvature: Union[np.ndarray, None] = None,
                           data_axis_is_first=False):
         cloud = GeoPointCloud()
@@ -95,7 +95,7 @@ class GeoPointCloud(Tiles3dContentObject, GeoPointCloudReadable, GeoPointCloudWr
         return GeoPointCloud()
 
     @classmethod
-    def from_pandas(cls, data_frame: pd.DataFrame, crs: GeoCrs=NoneCRS(), rgb_max=1.0):
+    def from_pandas(cls, data_frame: pd.DataFrame, crs: GeoCrs=NoneCRS(), rgb_max=255):
         if 'x' not in data_frame or 'y' not in data_frame or 'z' not in data_frame:
             raise KeyError("DataFrame needs at least columns x,y,z.")
         cloud = GeoPointCloud()
@@ -105,7 +105,7 @@ class GeoPointCloud(Tiles3dContentObject, GeoPointCloudReadable, GeoPointCloudWr
         return cloud
 
     @classmethod
-    def from_structured_array(cls, structured_array: np.ndarray, crs: GeoCrs=NoneCRS(), rgb_max=1.0):
+    def from_structured_array(cls, structured_array: np.ndarray, crs: GeoCrs=NoneCRS(), rgb_max=255):
         x = structured_array['X']
         y = structured_array['Y']
         z = structured_array['Z']
@@ -183,6 +183,7 @@ class GeoPointCloud(Tiles3dContentObject, GeoPointCloudReadable, GeoPointCloudWr
         if len(others) == 1:
             return result
         result.data = pd.concat([other.data for other in others])
+        result.rgb_max = max([other.rgb_max for other in others])
         return result
 
     @property
@@ -246,6 +247,10 @@ class GeoPointCloud(Tiles3dContentObject, GeoPointCloudReadable, GeoPointCloudWr
 
     @rgb.setter
     def rgb(self, rgb: np.ndarray):
+        if not self.has_rgb:
+            self.data.loc[:, ['r', 'g', 'b']] = rgb
+            self._has_rgb = True
+            return
         assert rgb.shape == self.rgb.shape
         self.data.loc[:, ['r', 'g', 'b']] = rgb
 
@@ -660,7 +665,7 @@ class GeoPointCloud(Tiles3dContentObject, GeoPointCloudReadable, GeoPointCloudWr
     def bounding_volume_tiles3d(self) -> Tiles3dBoundingVolume:
         return GeoBox3d.from_bounds(self.bounds, crs=self.crs)
 
-    def to_bytes_tiles3d(self, rgb:bool = True, normals: bool = True) -> bytes:
-        rgb = rgb and self.has_rgb
+    def to_bytes_tiles3d(self, rgb:bool = True, normals: bool = False) -> bytes:
+        #rgb = rgb and self.has_rgb
         normals = normals and self.has_normals
         return geopointcloud_to_3dtiles_pnts(self, rgb=rgb, normals=normals)

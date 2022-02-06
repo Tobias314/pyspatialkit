@@ -85,8 +85,3 @@ async def get_wms_capabilities(request: Request, layer: str,
         return Response(img_png.tobytes(), media_type="image/png")
         #return StreamingResponse(BytesIO(img_png), media_type="image/png")
     return "Request not known"
-
-
-@router.get("/download/test")
-def download_file():
-    return FileResponse('./test_patch.las', media_type='application/octet-stream', filename='test.las')

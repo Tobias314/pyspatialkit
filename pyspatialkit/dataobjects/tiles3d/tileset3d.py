@@ -48,7 +48,7 @@ class Tileset3d(ABC):
             geometric_error = self.geometric_error
         else:
             geometric_error = root_tile.geometric_error
-        tile_dict, end_list = self.root.materialize(tile_uri_generator=tile_uri_generator, tile_content_uri_generator=tile_content_uri_generator,
+        tile_dict, end_list = root_tile.materialize(tile_uri_generator=tile_uri_generator, tile_content_uri_generator=tile_content_uri_generator,
                                                      current_depth=0, accumulated_cost=0, max_depth=max_depth, max_cost=max_cost,
                                                      callback=callback)
         res_dict = self._generate_tileset_dict(tileset_version=self.tileset_version, geometric_error=geometric_error, root=tile_dict,

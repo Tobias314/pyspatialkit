@@ -4,6 +4,7 @@ from ....storage.geostorage import GeoStorage
 
 from ....storage.geolayer import GeoLayer
 from ....storage.raster.georasterlayer import GeoRasterLayer
+from ....storage.pointcloud.geopointcloudlayer import GeoPointCloudLayer
 
 router = APIRouter(
     prefix='/backend',
@@ -25,6 +26,8 @@ def generate_descriptor_for_layer(layer_name: str, layer: GeoLayer):
     descriptor["type"] = str(type(layer).__name__)
     if isinstance(layer, GeoRasterLayer):
         descriptor["dataType"] = "raster"
+    elif isinstance(layer, GeoPointCloudLayer):
+        descriptor["dataType"] = "pointcloud"
     else:
         descriptor["dataType"] = "custom"
     return descriptor

@@ -87,7 +87,10 @@ class GeoBox3d(Tiles3dBoundingVolume):
             min_pt = np.array(self.to_epsg4979_transformer.transform(min_pt[0], min_pt[1], min_pt[2]))
             max_pt = self.max
             max_pt = np.array(self.to_epsg4979_transformer.transform(max_pt[0], max_pt[1], max_pt[2]))
-            return {'region': [*np.minimum(min_pt, max_pt), *np.maximum(min_pt, max_pt)]}
+            min_pt, max_pt = np.minimum(min_pt, max_pt), np.maximum(min_pt, max_pt)
+            min_pt[:2] = np.deg2rad(min_pt[:2])
+            max_pt[:2] = np.deg2rad(max_pt[:2])
+            return {'region': [min_pt[0], min_pt[1], max_pt[0], max_pt[1], min_pt[2], max_pt[2]]}
         else:
             min_pt = self.min
             min_pt = np.array(self.to_epsg4978_transformer.transform(min_pt[0], min_pt[1], min_pt[2]))

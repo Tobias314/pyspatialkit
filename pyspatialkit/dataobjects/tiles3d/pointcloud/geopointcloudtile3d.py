@@ -18,26 +18,29 @@ class GeoPointCloudTileIdentifier(NamedTuple):
 
 class GeoPointCloudTile3d(Tile3d):
     def __init__(self, tileset: 'geopointcloudtileset3d.GeoPointCloudTileset3d',
-                  identifier: GeoPointCloudTileIdentifier):
+                  identifier: GeoPointCloudTileIdentifier, geometric_error=0):
         self._reset_cached()
         self.tileset = tileset
         self.tile_identifier = identifier
         self.bbox = self.tileset.get_bbox_from_identifier(self.identifier)
+        self._geometric_error = geometric_error
 
     def get_bounding_volume(self) -> GeoBox3d:
         return self.bbox
 
     def get_geometric_error(self) -> float:
-        return 0
+        return self._geometric_error
 
     def get_refine(self) -> RefinementType:
         return RefinementType.REPLACE        
 
     def get_content(self) -> Tiles3dContentObject:
         if self.level == 0:
-            pcl = self.tileset.point_cloud.get_data(self.bbox)
-            pcl.to_crs(crs_transformer=self.tileset.to_epsg4978_transformer, inplace=True)
-            return pcl
+            pc = self.tileset.point_cloud.get_data(self.bbox)
+            if pc.shape[0] == 0:
+                return None
+            pc.to_crs(crs_transformer=self.tileset.to_epsg4978_transformer, inplace=True)
+            return pc
         else:
             return None
 

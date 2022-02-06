@@ -4,7 +4,6 @@ import sys
 import json
 
 from ...utils.numpy import to_endianess
-print("TYPECHECKING" + str(TYPE_CHECKING))
 if TYPE_CHECKING:
     from ...dataobjects.geopointcloud import GeoPointCloud
 
@@ -35,6 +34,12 @@ def geopointcloud_to_3dtiles_pnts(pcl: 'GeoPointCloud', rgb: bool = True, normal
         arrays.append(normal_array.flatten())
         offset += num_pts * 12
     if rgb:
+        if not pcl.has_rgb:
+            z = pcl.z.to_numpy()
+            brightness = 100 + (np.abs(z) % 50) * 3
+            brightness = brightness.astype(np.uint8)
+            rgb = np.repeat(z[:,np.newaxis], repeats=3, axis=1)
+            pcl.rgb = rgb
         feature_table_json['RGB'] = {'byteOffset': offset}
         rgb_array = pcl.rgb.to_numpy()
         if pcl.rgb_max != 255:
@@ -50,7 +55,6 @@ def geopointcloud_to_3dtiles_pnts(pcl: 'GeoPointCloud', rgb: bool = True, normal
             arr.byteswap()
     feature_table = b''
     for arr in arrays:
-        print(arr)
         feature_table += arr.tobytes()
     feature_table_padding = (8 - len(feature_table) % 8) % 8
     feature_table += b' ' * feature_table_padding
