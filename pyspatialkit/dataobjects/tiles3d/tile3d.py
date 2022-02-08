@@ -67,7 +67,8 @@ class Tile3d(ABC):
         return 1
 
     def get_content_bounding_volume(self) -> Tiles3dBoundingVolume:
-        return self.content.bounding_volume_tiles3d
+        return self.bounding_volume
+        #return self.content.bounding_volume_tiles3d
 
 ###Properties###
     @property

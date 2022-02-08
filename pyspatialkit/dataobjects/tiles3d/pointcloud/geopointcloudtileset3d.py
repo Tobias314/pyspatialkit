@@ -46,7 +46,7 @@ class GeoPointCloudTileset3d(Tileset3d):
 
     @property
     def geometric_error(self) -> float:
-        return self.geometric_error_multiplier * self.max_level
+        return self.geometric_error_multiplier * (self.max_level + 1)
 
     def get_root(self) -> GeoPointCloudTile3d:
         return self.get_tile_by_identifier(GeoPointCloudTileIdentifier(self.max_level,(0,0,0)))
@@ -59,9 +59,7 @@ class GeoPointCloudTileset3d(Tileset3d):
         return bbox
 
     def get_tile_by_identifier(self,identifier: GeoPointCloudTileIdentifier)-> GeoPointCloudTile3d:
-        ge = 0
-        if identifier.level > 0:
-            ge = self.geometric_error_multiplier * identifier.level
+        ge = self.geometric_error_multiplier * identifier.level
         return GeoPointCloudTile3d(self, identifier=identifier, geometric_error=ge)
     
     def to_static_directory(self, directory_path: Union[str, Path], max_per_file_depth:Optional[int]=None,

@@ -92,16 +92,14 @@ class GeoBox3d(Tiles3dBoundingVolume):
             max_pt[:2] = np.deg2rad(max_pt[:2])
             return {'region': [min_pt[0], min_pt[1], max_pt[0], max_pt[1], min_pt[2], max_pt[2]]}
         else:
-            min_pt = self.min
-            min_pt = np.array(self.to_epsg4978_transformer.transform(min_pt[0], min_pt[1], min_pt[2]))
-            max_pt = self.max
-            max_pt = np.array(self.to_epsg4978_transformer.transform(max_pt[0], max_pt[1], max_pt[2]))
-            min_pt, max_pt = np.minimum(min_pt, max_pt), np.maximum(min_pt, max_pt)
+            center = self.max - self.min
             edge_half_length = (max_pt - min_pt) / 2
-            x_vec = np.array([1,0,0]) * edge_half_length[0]
-            y_vec = np.array([0,1,0]) * edge_half_length[1]
-            z_vec = np.array([0,0,1]) * edge_half_length[2]
-            res_vec = [*((min_pt + max_pt) / 2), *x_vec, *y_vec, *z_vec]
+            right = center + np.array([1,0,0]) * edge_half_length[0]
+            forward = center + np.array([0,1,0]) * edge_half_length[1]
+            up = center + np.array([0,0,1]) * edge_half_length[2]
+            pts = np.array([center, right, forward, up])
+            pts = np.stack(self.to_epsg4978_transformer.transform(pts[:,0], pts[:,1], pts[:,2]), axis=1)
+            res_vec = [*pts[0], *(pts[1]- pts[0]), *(pts[2]- pts[0]), *(pts[3]- pts[0])]
             return {'box': res_vec}
 
     def __str__(self)-> str:

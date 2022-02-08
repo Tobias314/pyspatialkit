@@ -222,7 +222,7 @@ class GeoPointCloud(Tiles3dContentObject, GeoPointCloudReadable, GeoPointCloudWr
 
     @property
     def y(self) -> pd.Series:
-        return self.data['z']
+        return self.data['y']
 
     @y.setter
     def y(self, y: np.ndarray):
