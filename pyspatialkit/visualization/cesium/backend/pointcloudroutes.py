@@ -64,11 +64,13 @@ async def get_point_cloud_root_tile(request: Request, layer: str, tile_descripto
 
 @router.get("/{layer}/tiles/{tile_descriptor}")
 async def get_point_cloud_content(request: Request, layer: str, tile_descriptor: str):
+    tileset = _get_tileset(request, layer)
     if tile_descriptor == 'root.json':
-        tileset = _get_tileset(request, layer)
-        tile = tileset.get_root()
+        json_dict, _ = tileset.materialize(tile_uri_generator=_uri_generator, tile_content_uri_generator=_content_uri_generator, max_depth=1)
     else:
-        tileset, tile = _get_tileset_and_tile(request, layer, tile_descriptor)
-    json_dict, _ = tileset.materialize(tile_uri_generator=_uri_generator, tile_content_uri_generator=_content_uri_generator,
-                                       root_tile=tile, max_depth=1)
+        m = [int(val) for val in re.search(FILE_PATTERN, tile_descriptor).groups()]
+        tile_identifier = GeoPointCloudTileIdentifier(m[0], m[1:4])
+        tile = tileset.get_tile_by_identifier(tile_identifier)
+        json_dict, _ = tileset.materialize(tile_uri_generator=_uri_generator, tile_content_uri_generator=_content_uri_generator,
+                                        root_tile=tile, max_depth=1)
     return json_dict

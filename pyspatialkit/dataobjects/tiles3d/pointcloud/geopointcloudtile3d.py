@@ -54,13 +54,13 @@ class GeoPointCloudTile3d(Tile3d):
         min_idx = np.array(self.tile_identifier.tile_indices) * 2
         tile_size = self.tileset.get_tile_size_for_level(self.level - 1)
         for i in range(min_idx[0], min_idx[0] + self.tileset.num_tiles_per_level_edge[0]):
-            if self.tileset.min[0] + i * tile_size[0] > self.tileset.max[0]:
+            if self.tileset.min[0] + i * tile_size[0] >= self.tileset.max[0]:
                 continue
             for j in range(min_idx[1], min_idx[1] + self.tileset.num_tiles_per_level_edge[1]):
-                if self.tileset.min[1] + j * tile_size[1] > self.tileset.max[1]:
+                if self.tileset.min[1] + j * tile_size[1] >= self.tileset.max[1]:
                     continue
                 for k in range(min_idx[2], min_idx[2] + self.tileset.num_tiles_per_level_edge[2]):
-                    if self.tileset.min[2] + k * tile_size[2] > self.tileset.max[2]:
+                    if self.tileset.min[2] + k * tile_size[2] >= self.tileset.max[2]:
                         continue
                     children.append(self.tileset.get_tile_by_identifier(GeoPointCloudTileIdentifier(self.level-1, (i,j,k))))
         return children

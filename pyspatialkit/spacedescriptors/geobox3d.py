@@ -80,14 +80,19 @@ class GeoBox3d(Tiles3dBoundingVolume):
         border_size = np.array(border_size)
         return GeoBox3d(self.bounds[:3] + border_size, self.bounds[3:] - border_size, self.crs)
 
-
     def to_tiles3d_bounding_volume_dict(self) -> Dict[str, List[float]]:
         if not self.crs.is_geocentric:
             min_pt = self.min
-            min_pt = np.array(self.to_epsg4979_transformer.transform(min_pt[0], min_pt[1], min_pt[2]))
             max_pt = self.max
-            max_pt = np.array(self.to_epsg4979_transformer.transform(max_pt[0], max_pt[1], max_pt[2]))
-            min_pt, max_pt = np.minimum(min_pt, max_pt), np.maximum(min_pt, max_pt)
+            x = np.array([min_pt[0], max_pt[0]])
+            y = np.array([min_pt[1], max_pt[1]])
+            z = np.array([min_pt[2], max_pt[2]])
+            x,y,z = np.meshgrid(x,y,z, indexing='ij')
+            x,y,z = x.flatten(), y.flatten(), z.flatten()
+            x,y,z = np.array(self.to_epsg4979_transformer.transform(x,y,z))
+            pts = np.stack([x,y,z], axis=1)
+            min_pt = pts.min(axis=0)
+            max_pt = pts.max(axis=0)
             min_pt[:2] = np.deg2rad(min_pt[:2])
             max_pt[:2] = np.deg2rad(max_pt[:2])
             return {'region': [min_pt[0], min_pt[1], max_pt[0], max_pt[1], min_pt[2], max_pt[2]]}

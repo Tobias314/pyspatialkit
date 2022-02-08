@@ -34,13 +34,14 @@ BACKEND_DIRECTORY_NAME = "backend"
 
 DEFAULT_MIN_ELEVATION = -20000
 DEFAULT_MAX_ELEVATION = 100000
-DEFAULT_POINT_PER_METER_1D = 300
+DEFAULT_POINT_PER_METER_1D = 100
 
 
 class GeoPointCloudLayer(GeoLayer, GeoPointCloudReadable, GeoPointCloudWritable):
 
     def initialize(self, data_scheme: Dict[str, np.dtype], crs: GeoCrs = DEFAULT_CRS, bounds: Optional[Tuple[float, float, float, float, float, float]] = None,
-                   point_density=0.01, build_pyramid: bool = True, rgb_max:float = 255):
+                   point_density=0.01, build_pyramid: bool = True, backend_space_tile_size: Optional[Tuple[float, float ,float]] = None,
+                   rgb_max:float = 255):
         self._data_scheme = data_scheme
         self._crs = crs
         if bounds is None:
@@ -52,8 +53,11 @@ class GeoPointCloudLayer(GeoLayer, GeoPointCloudReadable, GeoPointCloudWritable)
         self.build_pyramid = build_pyramid
         self._eager_pyramid_update = True
         self.point_density = point_density
-        tmp = DEFAULT_POINT_PER_METER_1D / self.point_density
-        self.backend_space_tile_size = (tmp, tmp, tmp)
+        if backend_space_tile_size is None:
+            tmp = DEFAULT_POINT_PER_METER_1D / self.point_density
+            self.backend_space_tile_size = (tmp, tmp, tmp)
+        else:
+            self.backend_space_tile_size = backend_space_tile_size
         self.rgb_max = rgb_max
         self.backend = TileDbSparseBackend(bounds=self._bounds, directory_path=self.directory_path / BACKEND_DIRECTORY_NAME,
                                            data_scheme=self._data_scheme,

@@ -58,11 +58,12 @@ class GeoStorage(GeoLayerOwner):
             layer.delete()
         shutil.rmtree(self.directory_path)
 
-    def delete_layer(self, layer_name: str):
+    def delete_layer_permanently(self, layer_name: str):
         if layer_name not in self.layers:
             logger().warning("A layer with this name does not exist. No layer will be deleted")
             return False
         self.layers[layer_name].delete_permanently()
+        del self.layers[layer_name]
 
     def _add_layer(self, layer_name: str, layer_type: type, *args, **kwargs) -> GeoLayer:
         if layer_name in self.layers:

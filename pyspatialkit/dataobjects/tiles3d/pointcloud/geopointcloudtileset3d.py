@@ -21,7 +21,7 @@ class GeoPointCloudTileset3d(Tileset3d):
         super().__init__()
         self.point_cloud = point_cloud
         self.tile_size = np.array(tile_size)
-        self.num_tiles_per_level_edge = num_tiles_per_level_edge
+        self.num_tiles_per_level_edge = np.array(num_tiles_per_level_edge)
         self.geometric_error_multiplier = geometric_error_multiplier
         self.to_epsg4978_transformer = GeoCrsTransformer(self.point_cloud.crs, GeoCrs.from_epsg(4978))
         if not self.point_cloud.crs.is_geocentric:
@@ -32,7 +32,7 @@ class GeoPointCloudTileset3d(Tileset3d):
         self.max_level = int(np.max(np.ceil(np.log(self.extent / self.tile_size) / np.log(self.num_tiles_per_level_edge))))
 
     def get_tile_size_for_level(self, level: int)-> np.ndarray:
-        tile_size = self.tile_size * 2**(level)
+        tile_size = self.tile_size * self.num_tiles_per_level_edge**(level)
         tile_size = np.minimum(tile_size, self.extent)
         return tile_size
 
