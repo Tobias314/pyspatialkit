@@ -5,12 +5,11 @@ from geopandas.geodataframe import GeoDataFrame
 
 import shapely
 from shapely.geometry import Point, Polygon, LineString, LinearRing, MultiPolygon, MultiLineString, MultiPoint
-import geoviews as gv
 import geopandas as gpd
 
 from ..crs.geocrs import GeoCrs
 from ..crs.geocrstransformer import GeoCrsTransformer
-from ..globals import GEOVIEWS_BACK_MAP
+from ..globals import get_geoviews, get_geoviews_back_map
 from ..spacedescriptors.georect import GeoRect
 
 class GeoShape:
@@ -73,7 +72,7 @@ class GeoShape:
 
     def to_geoviews(self):
         shp = self.to_crs(GeoCrs.from_epsg(4326),inplace=False)
-        return gv.Shape(shp.to_shapely())
+        return get_geoviews().Shape(shp.to_shapely())
 
     def plot(self):
-        return GEOVIEWS_BACK_MAP * self.to_geoviews()
+        return get_geoviews_back_map() * self.to_geoviews()

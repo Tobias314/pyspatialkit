@@ -2,11 +2,14 @@ import $ from "jquery"
 import {BACKEND_URL} from "../constants"
 import {LayerInterface} from "../layers/layerinterface"
 import {RasterLayer} from "../layers/rasterlayer"
+import { PointCloudLayer } from "../layers/pointcloudlayer"
 import {LayersDescriptor, LayerDescriptor, LayerTypes} from "./descriptors/layerdescriptor"
 
 function parseLayerDescriptor(layerDescriptor: LayerDescriptor) : LayerInterface | undefined{
     if (layerDescriptor.type == LayerTypes.GEO_RASTER_LAYER){
         return new RasterLayer(layerDescriptor.name);
+    }else if (layerDescriptor.type == LayerTypes.GEO_POINT_CLOUD_LAYER){
+        return new PointCloudLayer(layerDescriptor.name);
     }else{
         throw new TypeError("Backend responded with layer of unknown type!")
         return undefined;

@@ -12,13 +12,14 @@ import {LayerListView} from "./components/layerlistview"
 import { LayerInterface } from './layers/layerinterface';
 import {getLayers} from './backend/geostorage';
 
+import {Ion} from "cesium"
+
 interface AppState{
     layers: Array<LayerInterface>;
     selectedLayers: Set<number>;
 }
 
 class App extends React.Component<{}, AppState>{
-
     constructor(props: {}){
         super(props);
         this.state = {
@@ -57,4 +58,5 @@ class App extends React.Component<{}, AppState>{
   }
 }
 
+Ion.defaultAccessToken = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqdGkiOiIyOGM5ZDY3Ny03OTBkLTRhODQtYjU4YS04MzU2N2MwNjc1MTMiLCJpZCI6ODE1NDIsImlhdCI6MTY0NDA2NTIyNX0.xAWHkgLME8XytVxm8y-J8Uf9xcv0lw2AHTob6Ewim4I"
 ReactDOM.render(<App />, document.getElementById("root"));

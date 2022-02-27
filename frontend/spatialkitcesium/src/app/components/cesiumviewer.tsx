@@ -1,6 +1,7 @@
 import React from "react"
 import { Cartesian3, WebMapServiceImageryProvider} from "cesium";
 import { Viewer, Entity, PointGraphics, ImageryLayer, CameraLookAt, CameraFlyTo} from "resium";
+import {viewerCesium3DTilesInspectorMixin} from "cesium"
 import { LayerInterface } from "../layers/layerinterface";
 
 declare interface CesiumViewerProps{
@@ -25,7 +26,7 @@ export class CesiumViewer extends React.Component<CesiumViewerProps>{
         
         //<ImageryLayer imageryProvider={imageryProvider} />
         return (
-            <Viewer className="full-screen-height container-fluid">
+            <Viewer className="full-screen-height container-fluid" extend={viewerCesium3DTilesInspectorMixin}>
                 {cameraFlyTo}
                 {renderComponents}
             </Viewer>

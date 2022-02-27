@@ -2,13 +2,12 @@ from typing import List
 
 from abc import ABC, abstractmethod
 
-import geoviews as gv
 import geopandas as gpd
 from pyproj import CRS
 
 from ..crs.geocrs import GeoCrs
 from ..spacedescriptors.georect import GeoRect
-from ..globals import GEOVIEWS_BACK_MAP
+from ..globals import get_geoviews, get_geoviews_back_map
 
 
 
@@ -41,9 +40,9 @@ class GeoTiler2d(ABC):
     def to_geoviews(self, filled:bool=False):
         gdf = self.to_geopandas().to_crs(CRS.from_epsg(4326))
         if filled:
-            return gv.Polygons(gdf)
+            return get_geoviews().Polygons(gdf)
         else:
-            return gv.Path(gdf)
+            return get_geoviews().Path(gdf)
 
     def plot(self, filled:bool=False):
-        return GEOVIEWS_BACK_MAP * self.to_geoviews(filled=filled)
+        return get_geoviews_back_map() * self.to_geoviews(filled=filled)
