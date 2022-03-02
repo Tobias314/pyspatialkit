@@ -62,6 +62,10 @@ class NoneCRS(GeoCrs):
         super().__init__(crs=None)
 
     @property
+    def is_geocentric(self) -> bool:
+        return False
+
+    @property
     def proj_crs(self) -> CRS:
         raise TypeError("NoneCRS is a placeholder for a none existing crs.")
 

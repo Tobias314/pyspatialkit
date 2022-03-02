@@ -46,6 +46,12 @@ class GeoBox2d:
     def to_georect(self):
         return GeoRect(self.min, self.max, crs=self.crs)
 
+    def to_geoshape(self):
+        return self.to_georect().to_geoshape() #TODO: maybe don't go via georect
+
+    def to_shapely(self):
+        return self.to_georect().to_shapely() #TODO: maybe don't transform to 
+
     def get_edge_lengths(self) -> np.ndarray:
         return self.max - self.min
 

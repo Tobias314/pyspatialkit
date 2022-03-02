@@ -5,7 +5,7 @@ import numpy as np
 
 from ..dataobjects.geoshape import GeoShape
 from ..spacedescriptors.geobox3d import GeoBox3d
-from ..spacedescriptors.collections.geobox3dcollection import GeoBox3dCollection
+from ..spacedescriptors.collections.geoboxcollection import GeoBoxCollection
 from ..dataobjects.geoshape import GeoShape
 from ..crs.geocrs import GeoCrs
 from ..utils.tiling import bounds_from_polygon, raster_bounds2d, raster_bounds3d
@@ -34,7 +34,7 @@ class GeoBoxTiler3d:
     def __init__(self, aoi: GeoShape, min_height: float, max_height: float,
                  raster_size: Union[Tuple[float, float], Tuple[float, float, float]],
                  reference_crs: Optional[GeoCrs] = None, border_size:Union[Tuple[float, float], Tuple[float, float, float]]=(0,0,0)):
-        self._tiles = None
+        self._tiles: Optional[GeoBoxCollection] = None
         self.aoi = aoi
         self.raster_size = np.array(raster_size)
         self.height_span = np.array((min_height, max_height))
@@ -50,8 +50,7 @@ class GeoBoxTiler3d:
         else:
             self.border_size = np.array([border_size[0], border_size[1], 0])
 
-    @abstractmethod
-    def _generate_tiles(self) -> GeoBox3dCollection:
+    def _generate_tiles(self) -> GeoBoxCollection:
         bounds = bounds_from_polygon(self.aoi)
         if self.raster_size.shape[0] == 3:
             for i in range(len(bounds)):
@@ -66,7 +65,10 @@ class GeoBoxTiler3d:
         else:
             mins = raster_bounds3d(bounds, self.raster_size, border_size=self.border_size)
             maxs = mins + np.array([self.raster_size[0] + 2*border_size[0], self.raster_size[1] + 2*border_size[1], self.raster_size[2] + 2*border_size[2]])
-        return GeoBox3dCollection.from_mins_maxs(mins, maxs, self.crs)
+        return GeoBoxCollection.from_mins_maxs(mins, maxs, self.crs)
+
+    def partition(self, num_tiles:int):
+        return self.tiles.partition(num_tiles)
 
     def __iter__(self) -> GeoBoxTile3dIterator:
         return GeoBoxTile3dIterator(self)

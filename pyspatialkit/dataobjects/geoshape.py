@@ -10,7 +10,7 @@ import geopandas as gpd
 from ..crs.geocrs import GeoCrs
 from ..crs.geocrstransformer import GeoCrsTransformer
 from ..globals import get_geoviews, get_geoviews_back_map
-from ..spacedescriptors.georect import GeoRect
+from ..spacedescriptors import georect
 
 class GeoShape:
 
@@ -45,8 +45,8 @@ class GeoShape:
             return cls.from_bounds_2d((*bounds[:2], *bounds[3:5]), crs)
 
     @classmethod
-    def from_georect(cls, georect: GeoRect):
-        return GeoShape(shape=georect.to_shapely(), crs=georect.crs)
+    def from_georect(cls, rect: 'georect.GeoRect'):
+        return GeoShape(shape=rect.to_shapely(), crs=rect.crs)
 
     @classmethod
     def from_bounds_2d(cls, bounds: Tuple[float, float, float, float], crs: GeoCrs) -> 'GeoShape':

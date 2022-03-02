@@ -8,20 +8,15 @@ from pyproj import CRS
 from ..crs.geocrs import GeoCrs
 from ..spacedescriptors.georect import GeoRect
 from ..globals import get_geoviews, get_geoviews_back_map
+from .abstracttiler import AbstractTiler
 
 
-
-class GeoTiler2d(ABC):
+class GeoTiler2d(AbstractTiler):
 
     def __init__(self, reference_crs: GeoCrs):
         self.reference_crs = reference_crs
 
-    @abstractmethod
-    def __iter__(self):
-        raise NotImplementedError
-
-    def get_all_tiles(self, number) -> List[GeoRect]:
-        print(number)
+    def get_all_tiles(self) -> List[GeoRect]:
         tiles = []
         for tile in self:
             tiles.append(tile)

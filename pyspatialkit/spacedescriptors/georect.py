@@ -8,6 +8,7 @@ from ..utils.linalg import projective_transform_from_pts
 
 from ..crs.geocrs import GeoCrs, NoneCRS
 from ..crs.geocrstransformer import GeoCrsTransformer
+from ..dataobjects.geoshape import GeoShape
 
 
 class GeoRect:
@@ -66,6 +67,9 @@ class GeoRect:
 
     def to_shapely(self) -> Polygon:
         return Polygon([self.top_left, self.top_right, self.bottom_right, self.bottom_left])
+
+    def to_geoshape(self) -> GeoShape:
+        return GeoShape(self.to_shapely(), self.crs)
 
     def to_crs(self, new_crs: GeoCrs, crs_transformer: Optional[GeoCrsTransformer] = None, inplace=True) -> 'GeoRect':
         if crs_transformer is None:

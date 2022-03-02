@@ -22,18 +22,33 @@ class GeoStorage(GeoLayerOwner):
         self.directory_path.mkdir(parents=True, exist_ok=True)
         self.layers: Dict[str, GeoLayer] = {}
         if os.path.exists(self.directory_path / ".config"):
-            with open(self.directory_path / ".config") as config_file:
-                data = config_file.read()
-                data = json.loads(data)
-                for x in data["layers"]:
-                    layer_dir = self.directory_path / x["name"] / ""
-                    layer_name = os.path.basename(layer_dir)
-                    self.layers[layer_name] = globals()[x["type"]](layer_dir)
-                    self.layers[layer_name].register_owner(self)
+            self.load(check_path=False)
+            
 
     @property
     def name(self):
         return self.directory_path.name
+
+    def load(self, directory_path: Optional[Path] = None, check_path: bool = True):
+        if directory_path is None:
+            directory_path = self.directory_path
+        else:
+            self.directory_path = directory_path
+        if check_path and not os.path.exists(self.directory_path / ".config"):
+            raise LookupError("GeoStorage cannot be loaded because the file {}/.config does not exist!".format(self.directory_path))
+        with open(self.directory_path / ".config") as config_file:
+            data = config_file.read()
+            data = json.loads(data)
+            for x in data["layers"]:
+                layer_dir = self.directory_path / x["name"] / ""
+                layer_name = os.path.basename(layer_dir)
+                self.layers[layer_name] = globals()[x["type"]](layer_dir)
+                self.layers[layer_name].register_owner(self)
+
+    def persits(self):
+        for layer in self.layers.values():
+            layer.persist()
+        self.persist_configuration()
 
     def persist_configuration(self):
         layers = []
@@ -89,4 +104,12 @@ class GeoStorage(GeoLayerOwner):
 
     def on_child_delete(self, child: GeoLayer):
         del self.layers[child.name]
+
+    def __getstate__(self) -> str:
+        self.persist()
+        return self.directory_path
+
+    def __setstate__(self, path: str) -> 'GeoStorage':
+        self.layers: Dict[str, GeoLayer] = {}
+        self.load(directory_path=Path(path))
 
