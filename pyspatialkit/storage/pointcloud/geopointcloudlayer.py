@@ -139,6 +139,9 @@ class GeoPointCloudLayer(GeoLayer, GeoPointCloudReadable, GeoPointCloudWritable)
     def _delete_permanently(self):
         self.backend.delete_permanently()
 
+    def invalidate_cache(self):
+        self.backend.invalidate_cache()
+
     @property
     def visualizer_tileset(self):
         if self._visualizer_tileset is None:

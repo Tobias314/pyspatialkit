@@ -2,7 +2,7 @@
 import unittest
 import sys
 sys.path.append('../../../')
-from tests.utils import get_tmp_path, close_all_files_delete_dir
+from testing.utils import get_tmp_path, close_all_files_delete_dir
 
 import numpy as np
 from matplotlib import pyplot as plt

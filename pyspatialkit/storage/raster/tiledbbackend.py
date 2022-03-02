@@ -108,12 +108,15 @@ class TileDbBackend:
         data = data.squeeze()
         indexes = self._bounds_to_indexes(bounds)
         path = self.layers[0][0]
-        self.layers[0][1].close()
+        layer = self.layers[0][1]
+        if layer is not None:
+            layer.close()
         with tiledb.DenseArray(path, mode='w') as db:
             self._write_array_region(db, (indexes[0],indexes[2]), (indexes[1],indexes[3]), data=data)
             self.layers[0][1] = tiledb.DenseArray(path, mode='r')
             if self.build_pyramid:
                 self.dirty_regions.append(indexes)
+            db.close()
 
     #TODO: merge bounds at every level to increase performance of batch updates
     def update_pyramid(self) -> None:
@@ -123,12 +126,16 @@ class TileDbBackend:
             write_db_path = self.layers[layer][0]
             new_dirty_regions = []
             self.layers[layer][1].close()
+            self.layers[layer][1] = None
             with tiledb.DenseArray(write_db_path, mode='w') as db:
+                lower_layer = self.layers[layer-1]
+                if  lower_layer[1] is None:
+                    lower_layer[1] = tiledb.DenseArray(lower_layer[0], mode='r')
                 for index_bounds in dirty_regions:
                     upper_level_index_bounds = np.concatenate([np.floor(index_bounds[:2] / 2), np.ceil(index_bounds[2:4] / 2)]).astype(int)
                     index_bounds = upper_level_index_bounds * 2
                     #print(index_bounds)
-                    img = self._read_array_region(self.layers[layer-1][1], (index_bounds[0],index_bounds[2]), (index_bounds[1],index_bounds[3]))
+                    img = self._read_array_region(lower_layer[1], (index_bounds[0],index_bounds[2]), (index_bounds[1],index_bounds[3]))
                     #print(img.shape)
                     img = img.astype(self.next_bigger_dtype)
                     img_low_res = ((img[::2,::2] + img[1::2,::2] + img[::2,1::2] + img[1::2,1::2]) / 4).astype(self.dtype)
@@ -136,7 +143,6 @@ class TileDbBackend:
                     #db[upper_level_index_bounds[0]:upper_level_index_bounds[2], upper_level_index_bounds[1]:upper_level_index_bounds[3]] = img_low_res.view(self.band_attribute_dtype)
                     new_dirty_regions.append(upper_level_index_bounds)
                 dirty_regions = new_dirty_regions
-            self.layers[layer][1] = tiledb.DenseArray(write_db_path, mode='r')
         self.dirty_regions = []
 
     def get_data(self, bounds: Tuple[float, float, float, float], resolution: Optional[Tuple[int,int]]=None) -> np.ndarray:
@@ -148,13 +154,23 @@ class TileDbBackend:
             layer = np.clip(math.floor(math.log2((dims / np.array(resolution)).min())), 0, self.num_pyramid_layers)
         indexes = (indexes / 2**layer).astype(int)
         t1 = time.time()
-        res = self._read_array_region(self.layers[layer][1], (indexes[0],indexes[2]),(indexes[1],indexes[3]))
+        layer = self.layers[layer]
+        if layer[1] is None:
+            layer[1] = tiledb.DenseArray(layer[0], mode='r')
+        res = self._read_array_region(layer[1], (indexes[0],indexes[2]),(indexes[1],indexes[3]))
         #print("db request took: {}".format(time.time() - t1))
-        return res        
+        return res     
 
+    def invalidate_cache(self):
+        for layer in self.layers:
+            if layer[1] is not None:
+                layer[1].close()
+                layer[1] = None
+    
     def delete_permanently(self):
         for layer in self.layers:
-            layer[1].close()
+            if layer[1] is not None:
+                layer[1].close()
         shutil.rmtree(self.directory_path)
 
 

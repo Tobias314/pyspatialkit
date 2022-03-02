@@ -55,6 +55,7 @@ class GeoRasterLayer(GeoLayer):
         config['pixel_size'] = self.pixel_size_xy
         config['fill_value'] = self.fill_value
         config['build_pyramid'] = self.build_pyramid
+        config['_eager_pyramid_update'] = self._eager_pyramid_update
         with open(dir_path / 'config.json', 'w') as json_file:
             json.dump(config, json_file)
 
@@ -69,6 +70,7 @@ class GeoRasterLayer(GeoLayer):
             self.pixel_size_xy = config['pixel_size']
             self.fill_value = config['fill_value']
             self.build_pyramid = config['build_pyramid']
+            self._eager_pyramid_update = config['_eager_pyramid_update']
             self.backend = TileDbBackend(bounds=self.bounds, num_bands=self.num_bands, dtype=self.dtype,
                                         directory_path=self.directory_path / BACKEND_DIRECTORY_NAME, fill_value=self.fill_value, 
                                         pixel_size_xy=self.pixel_size_xy, build_pyramid=self.build_pyramid)
@@ -137,6 +139,9 @@ class GeoRasterLayer(GeoLayer):
             if georaster is not None:
                 output_layer.writer_raster_data(georaster)
         output_layer.commit_pyramid_update_transaction()
+
+    def invalidate_cache(self):
+        self.backend.invalidate_cache()
 
     def _delete_permanently(self):
         self.backend.delete_permanently()

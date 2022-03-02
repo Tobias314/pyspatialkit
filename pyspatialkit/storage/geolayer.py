@@ -81,6 +81,9 @@ class GeoLayer(ABC):
         self._owner: Optional[GeoLayerOwner] = None
         self.load(Path(path))
 
+    def invalidate_cache(self):
+        pass
+
     @property
     def name(self):
         return self.directory_path.name

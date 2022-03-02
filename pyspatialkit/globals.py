@@ -2,11 +2,17 @@ from typing import types, TYPE_CHECKING
 
 from pyproj import CRS
 import tiledb as tdb
+import loky
 
 from .crs.geocrs import GeoCrs
 
 
 DEFAULT_CRS = GeoCrs(crs= CRS.from_epsg(4326))
+
+LOKY_START_METHOD_SET = False
+if not LOKY_START_METHOD_SET:
+    loky.backend.context.set_start_method('spawn')
+    LOKY_START_METHOD_SET = True
 
 def configure_tiledb():
     config = tdb.Config()
@@ -32,3 +38,6 @@ def get_geoviews_back_map() -> back_map_type:
 def get_default_crs() -> GeoCrs:
     global DEFAULT_CRS
     return DEFAULT_CRS
+
+def get_process_pool_idle_timeout()->float:
+    return 600

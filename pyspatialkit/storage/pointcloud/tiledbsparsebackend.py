@@ -85,7 +85,7 @@ class TileDbSparseBackend:
                     domain=dom, sparse=True, capacity=self.data_tile_capacity, attrs=self.array_attributes.values())
                 schema.check()
                 tiledb.Array.create(path, schema)
-            self.levels[i] = [path, tiledb.SparseArray(path, mode='r')]
+            self.levels[i] = [path, None]
         if self.build_pyramid:
             self.dirty_boxes = []
 
@@ -112,7 +112,7 @@ class TileDbSparseBackend:
             if self.build_pyramid:
                 bounds = (x.min(), y.min(), z.min(), x.max(), y.max(), z.max())
                 self.dirty_boxes.append(bounds)
-        self.levels[0][1] = tiledb.SparseArray(self.levels[0][0], mode='r')
+        #self.levels[0][1] = tiledb.SparseArray(self.levels[0][0], mode='r')
 
     # TODO: merge bounds at every level to increase performance of batch updates
     def update_pyramid(self) -> None:
@@ -123,8 +123,11 @@ class TileDbSparseBackend:
             new_dirty_regions = []
             self.levels[level][1].close()
             with tiledb.SparseArray(write_db_path, mode='w') as db:
+                lower_level = self.levels[level-1]
+                if lower_level[1] is None:
+                    lower_level[1] = tiledb.SparseArray(lower_level[0], mode='r')
                 for bounds in dirty_regions:
-                    df = self.levels[level-1][1].query(coords=True, use_arrow=False).df[bounds[0]:bounds[3],
+                    df = lower_level[1].query(coords=True, use_arrow=False).df[bounds[0]:bounds[3],
                                                     bounds[1]:bounds[4], bounds[2]:bounds[5]]
                     area_estimate = bounds3d_half_surface_area(bounds)
                     density = (2**(level - 1) * self.base_point_density)
@@ -143,7 +146,7 @@ class TileDbSparseBackend:
                     #    df[AXIS_NAMES[2]]] = attributes
                     new_dirty_regions.append(bounds)
                 dirty_regions = new_dirty_regions
-            self.levels[level][1] = tiledb.SparseArray(write_db_path, mode='r')
+            #self.levels[level][1] = tiledb.SparseArray(write_db_path, mode='r')
         self.dirty_boxes = []
 
     def get_data(self, bounds: Tuple[float, float, float, float, float, float], attributes: Optional[Tuple[str]] = None) -> pd.DataFrame:
@@ -168,13 +171,22 @@ class TileDbSparseBackend:
     #     return self.get_data_for_level(bounds=bounds, level=level, attributes=attributes)
 
     def get_data_for_level(self, bounds: Tuple[float, float, float, float, float, float], level: int, attributes: Optional[Tuple[str]] = None) -> pd.DataFrame:
-        res = self.levels[level][1].query(attrs=attributes, coords=True, use_arrow=False).df[bounds[0]:bounds[3], bounds[1]:bounds[4], bounds[2]:bounds[5]]
+        level = self.levels[level]
+        if level[1] is None:
+            level[1] = tiledb.SparseArray(level[0], mode='r')
+        res = level[1].query(attrs=attributes, coords=True, use_arrow=False).df[bounds[0]:bounds[3], bounds[1]:bounds[4], bounds[2]:bounds[5]]
         if self._no_attributes:
             res.drop(columns='t', inplace=True)
         return res
 
+    def invalidate_cache(self):
+        for level in self.levels:
+            if level[1] is not None:
+                level[1].close()
+                level[1] = None
 
     def delete_permanently(self):
         for level in self.levels:
-            level[1].close()
+            if level[1] is not None:
+                level[1].close()
         shutil.rmtree(self.directory_path)

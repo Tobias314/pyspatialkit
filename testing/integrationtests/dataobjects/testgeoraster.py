@@ -1,7 +1,7 @@
 import unittest
 import sys
 sys.path.append('../../../../')
-from tests.utils import get_testdata_path
+from testing.utils import get_testdata_path
 
 import numpy as np
 import logging

@@ -1,20 +1,24 @@
 from abc import ABC, abstractmethod
-from typing import Callable, Dict, Optional, Union, List
+from typing import Callable, Dict, Optional, Union, List, Set
 import multiprocessing
 import inspect
 import importlib
+import loky
 
 
 from ..tiling.abstracttiler import AbstractTiler
 from ..storage.geostorage import GeoStorage
 from ..storage.geolayer import GeoLayer
+from ..globals import get_process_pool_idle_timeout
 
 class LayerProcessor:
 
-    def __init__(self, tiler: AbstractTiler, processor_function: Callable, num_workers: Optional[int] = None):
+    def __init__(self, tiler: AbstractTiler, processor_function: Callable, num_workers: Optional[int] = None,
+                 outputs: Optional[Set[str]] = None):
         self.tiler = tiler
         self.processor_function = processor_function
         self.num_workers = num_workers
+        self.outputs = outputs
         if self.num_workers is None:
             self.num_workers = multiprocessing.cpu_count()
         spec = inspect.getfullargspec(self.processor_function)
@@ -55,20 +59,39 @@ class LayerProcessor:
         for tiler_partition in tiler_partitions:
             workloads.append(LayerProcessorWorkload(tiler_partition, self, res_args, res_kwargs))
         asyncs = []
-        ctx = multiprocessing.get_context('spawn')
-        with ctx.Pool(processes=self.num_workers) as pool:
-            for workload in workloads:
-                asyncs.append(pool.apply_async(process_layer_workload, (workload,)))
-            for async_res in asyncs:
-                async_res.get()
+        for workload in workloads:
+            executor = loky.get_reusable_executor(max_workers=self.num_workers, timeout=get_process_pool_idle_timeout())
+            asyncs.append(executor.submit(process_layer_workload, workload))
+        output_layers: List[GeoLayer] = []
+        for i, arg_name in enumerate(res_arg_names):
+            arg = res_args[i]
+            if isinstance(arg, GeoLayer):
+                if self.outputs is None or arg_name in self.outputs:
+                    output_layers.append(arg)
+        for arg in res_args[len(res_arg_names):]:
+            if isinstance(arg, GeoLayer):
+                output_layers.append(arg)
+        for key, arg in res_kwargs.items():
+            if isinstance(arg, GeoLayer):
+                if self.outputs is None or arg_name in self.outputs:
+                    output_layers.append(arg)
+        #Join results and invalidate caches of all output layers so that we load all new values from storage 
+        # instead of using possibly outdated cache results
+        for async_res in asyncs:
+            async_res.result()
+        for layer in output_layers:
+            layer.invalidate_cache()
 
 class LayerProcessorConfigurator:
 
-    def __init__(self, processor_function: Callable):
+    def __init__(self, processor_function: Callable, outputs: Optional[List[str]] = None):
         self.processor_function = processor_function
+        self.outputs = outputs
+        if self.outputs is not None:
+            self.outputs = set(self.outputs)
 
     def __call__(self, tiler: AbstractTiler, num_workers: Optional[int] = None) -> LayerProcessor:
-        return LayerProcessor(tiler=tiler, processor_function=self.processor_function, num_workers=num_workers)
+        return LayerProcessor(tiler=tiler, processor_function=self.processor_function, num_workers=num_workers, outputs=self.outputs)
 
 
 class LayerProcessorWorkload:
@@ -101,6 +124,10 @@ def process_layer_workload(workload: LayerProcessorWorkload):
         workload.processor.processor_function(tile, *workload.args, **workload.kwargs)
 
 
-def layerprocessor(func):
-    return LayerProcessorConfigurator(processor_function=func)
+def layerprocessor(outputs: Optional[Union[Callable, List[str]]]):
+    if isinstance(outputs, Callable):
+        return LayerProcessorConfigurator(processor_function=outputs)
+    def decorator_function(func):
+        return LayerProcessorConfigurator(processor_function=outputs, outputs=outputs)
+
         
