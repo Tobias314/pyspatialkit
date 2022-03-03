@@ -116,11 +116,13 @@ RUN mamba install -n env -c conda-forge trimesh -y
 RUN mamba install -n env -c conda-forge tensorboard -y
 RUN mamba install -n env -c conda-forge mapbox_earcut -y
 RUN mamba install -n env -c conda-forge ipympl -y
+RUN mamba install -n env -c conda-forge loky -y
 # RUN conda install -n env pytorch torchvision torchaudio cudatoolkit=10.2 -c pytorch
 
 ################################## Pip Dependencies ##################################
 RUN conda activate env; pip install pylas
 RUN conda activate env; pip install triangle
+RUN conda activate env; pip install loky
 
 ################################## Npm Dependencies ##################################
 RUN apt update

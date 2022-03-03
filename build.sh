@@ -1,1 +1,1 @@
-docker build . -t pyspatialkit
+docker build . -t pyspatialkit --network=host
