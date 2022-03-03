@@ -1,7 +1,8 @@
-# pyspatialkit
+# Pyspatialkit
 An open source python library for working and storing large amount of geospatial data with a focus on raster and point cloud data.
 
-# Front End Development
+## Development Guide
+### Front End Development
 Start the dev server in frontend/spatialkitcesion using:
 
 `npx webpack-dev-server --port 8081`
