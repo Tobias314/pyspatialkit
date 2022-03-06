@@ -117,6 +117,7 @@ RUN mamba install -n env -c conda-forge tensorboard -y
 RUN mamba install -n env -c conda-forge mapbox_earcut -y
 RUN mamba install -n env -c conda-forge ipympl -y
 RUN mamba install -n env -c conda-forge loky -y
+RUN mamba install -n env -c conda-forge cachetools -y
 # RUN conda install -n env pytorch torchvision torchaudio cudatoolkit=10.2 -c pytorch
 
 ################################## Pip Dependencies ##################################

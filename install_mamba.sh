@@ -31,6 +31,7 @@ mamba install -c conda-forge tensorboard -y
 mamba install -c conda-forge mapbox_earcut -y
 mamba install -c conda-forge ipympl -y
 mamba install -c conda-forge loky -y
+mamba install -c conda-forge cachetools -y
 #  conda install pytorch torchvision torchaudio cudatoolkit=10.2 -c pytorch
 
 ################################## Pip Dependencies ##################################
