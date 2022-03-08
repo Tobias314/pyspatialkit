@@ -10,14 +10,14 @@ from cachetools import LRUCache
 from ...utils.threading import RWLock
 
 
-class BoxStorageObjectInterface(ABC):
+class BBoxStorageObjectInterface(ABC):
 
     @abstractmethod
     def to_file(self, path: Path):
         raise NotImplementedError()
 
     @abstractclassmethod
-    def from_file(cls, path: Path) -> Optional['BoxStorageObjectInterface']:
+    def from_file(cls, path: Path) -> Optional['BBoxStorageObjectInterface']:
         raise NotImplementedError()
 
     @abstractmethod
@@ -29,9 +29,9 @@ class BoxStorageObjectInterface(ABC):
         raise NotImplementedError()
 
 
-class BoxStorageTileIndex:
+class BBoxStorageTileIndex:
     
-    def __init__(self, storage: 'BoxStorage', identifier: Union[Tuple[int, int], Tuple[int,int,int]],
+    def __init__(self, storage: 'BBoxStorage', identifier: Union[Tuple[int, int], Tuple[int,int,int]],
                  own_index_boxes: np.ndarray, own_index_ids: np.ndarray,
                  foreign_index_boxes: np.ndarray, foreign_index_ids: np.ndarray,
                  max_item: int = 0):
@@ -55,41 +55,46 @@ class BoxStorageTileIndex:
                  foreign_index_boxes=self.foreign_index_boxes, foreign_index_ids=self.foreign_index_ids)
 
     @classmethod
-    def load_from_file(cls, storage: 'BoxStorage', identifier: Union[Tuple[int,int], Tuple[int,int,int]]):
-        data = np.load(storage.get_tile_directory(identifier) / '.index')
-        max_item = data['max_item'][0]
-        return cls(storage=storage, identifier=identifier, 
-                   own_index_boxes=data['own_index_boxes'],own_index_ids=data['own_index_ids'],
-                   foreign_index_boxes=data['foreign_index_boxes'],foreign_index_ids=data['foreign_index_ids'],
-                   max_item=max_item)
+    def load_from_file(cls, storage: 'BBoxStorage', identifier: Union[Tuple[int,int], Tuple[int,int,int]]):
+        try:
+            data = np.load(storage.get_tile_directory(identifier) / '.index')
+            max_item = data['max_item'][0]
+            return cls(storage=storage, identifier=identifier, 
+                    own_index_boxes=data['own_index_boxes'],own_index_ids=data['own_index_ids'],
+                    foreign_index_boxes=data['foreign_index_boxes'],foreign_index_ids=data['foreign_index_ids'],
+                    max_item=max_item)
+        except FileNotFoundError:
+            bboxes_index_shape = (0,storage.dims * 2)
+            (storage.get_tile_directory(identifier) / 'data').mkdir(exist_ok=True, parents=True)
+            return cls(storage=storage, identifier=identifier, own_index_boxes = np.empty(bboxes_index_shape, dtype=float),
+                       own_index_ids=np.empty(0, dtype=int), foreign_index_boxes=np.empty(bboxes_index_shape, dtype=float),
+                       foreign_index_ids=np.empty((0,4), dtype=int), max_item=0)
 
     def filter_boxes_by_bbox(self, requ_min: np.ndarray, requ_max: np.ndarray) -> np.ndarray:
         index_mins = self.own_index_boxes[:, :self.dims]
         index_maxs = self.own_index_boxes[:, self.dims:]
         mask = np.logical_not((requ_min > index_maxs).any(axis=1) | (requ_max < index_mins).any(axis=1))
         res1 = self.own_index_ids[mask]
-        res1 = np.concatenate([np.repeat([self.identifier], res1.shape[0], axis=0), res1[:, np.newaxis]])
+        res1 = np.concatenate([np.repeat([self.identifier], res1.shape[0], axis=0), res1[:, np.newaxis]], axis=1)
         ndex_mins = self.foreign_index_boxes[:, :self.dims]
         index_maxs = self.foreign_index_boxes[:, self.dims:]
         mask = np.logical_not((requ_min > index_maxs).any(axis=1) | (requ_max < index_mins).any(axis=1))
         res2 = self.foreign_index_ids[mask]
         return np.concatenate([res1, res2], axis=0)
 
-    def write_own_object(self, bounds: np.ndarray, obj: BoxStorageObjectInterface, flush=True) -> int:
-        assert bounds.shape[0] == 2 * self.dims
+    def write_own_object(self, bounds: np.ndarray, obj: BBoxStorageObjectInterface, flush=True) -> int:
+        assert len(bounds) == 2 * self.dims
         self.max_item += 1
-        while (self.own_index_ids == self.max_item).any():
+        while (self.own_index_ids == self.max_item.item()).any():
             self.max_item += 1
-        self.storage.write_object_to_file(obj, self.identifier, self.max_item)
+        self.storage.write_object_to_file(obj, self.identifier, self.max_item.item())
         self.unflushed_own_index_boxes.append(bounds)
-        self.unflushed_own_index_ids.append(self.max_item)
+        self.unflushed_own_index_ids.append(self.max_item.item())
+        self.unflushed_changes = True
         if flush:
             self.flush()
-        else:
-            self.unflushed_changes = True
-        return self.max_item
     
-    def write_foreign_object(self, bounds: np.ndarray, obj: BoxStorageObjectInterface, foreign_tile_identifier, foreign_object_identifier,
+    def write_foreign_object(self, bounds: np.ndarray, obj: BBoxStorageObjectInterface, foreign_tile_identifier, foreign_object_identifier,
                              flush=True) -> int:
         assert bounds.shape[0] == 2 * self.dims
         self.unflushed_foreign_index_boxes.append(bounds)
@@ -98,32 +103,34 @@ class BoxStorageTileIndex:
             self.flush()
         else:
             self.unflushed_changes = True
-        return self.max_item
+        return self.max_item.item()
 
     def flush(self):
         if self.unflushed_changes:
             if self.unflushed_foreign_index_boxes:
                 self.foreign_index_boxes = np.concatenate([self.foreign_index_boxes, self.unflushed_foreign_index_boxes])
                 self.foreign_index_ids = np.concatenate([self.foreign_index_ids, self.unflushed_foreign_index_ids])
+                self.unflushed_foreign_index_boxes = []
+                self.unflushed_foreign_index_ids = []
             if self.unflushed_own_index_boxes:
-                self.own_index_boxes = np.concatenate([self.own_index_boxes, self.unflushed_own_index_boxes])
+                self.own_index_boxes = np.concatenate([self.own_index_boxes, self.unflushed_own_index_boxes], axis=0)
                 self.own_index_ids = np.concatenate([self.own_index_ids, self.unflushed_own_index_ids])
+                self.unflushed_own_index_boxes = []
+                self.unflushed_own_index_ids = []
         self.persist_to_file()
         self.unflushed_changes = False
 
 
-class BoxStorage:
+class BBoxStorage:
 
     def __init__(self, directory_path: Path, bounds: Union[Tuple[float,float,float,float], Tuple[float,float,float,float,float,float]],
-                 tile_size: Union[int, float, Tuple[float, float], Tuple[float,float,float]], object_type: BoxStorageObjectInterface,
+                 tile_size: Union[Tuple[float, float], Tuple[float,float,float]], object_type: BBoxStorageObjectInterface,
                  tile_cache_size: int = 100, object_cache_size: int = 1000):
         self.directory_path= directory_path
         self.bounds = np.array(bounds)
-        self.tile_size = np.array(tile_size)
-        if len(tile_size) == 0:
-            self.tile_size = np.array([tile_size for i in range(len(self.bounds) / 2)])
-        if len(self.tile_size) * 2 != len(self.bounds):
+        if len(tile_size) * 2 != len(self.bounds):
             raise AttributeError("Dimensionality of tile size does not match dimensionality of bounds")
+        self.tile_size = np.array(tile_size)
         self.dims = len(self.tile_size)
         self.tile_cache_size = tile_cache_size
         self.object_cache_size = object_cache_size
@@ -158,20 +165,22 @@ class BoxStorage:
             if identifier in self.tile_cache:
                 return self.tile_cache[identifier]
             else:
-                tile = BoxStorageTileIndex.load_from_file(self, identifier)
+                tile = BBoxStorageTileIndex.load_from_file(self, identifier)
                 self.tile_cache[identifier] = tile
                 return tile
 
-    def write_object_to_file(self, obj: BoxStorageObjectInterface, tile_identifier: Tuple, object_identifier: int):
+    def _get_object_path(self, tile_identifier: Tuple, object_identifier: int) -> Path:
+        return self.get_tile_directory(tile_identifier) / 'data' / (str(object_identifier) + '.geoobj')
+
+    def write_object_to_file(self, obj: BBoxStorageObjectInterface, tile_identifier: Tuple, object_identifier: int):
         tile_identifier = tuple(tile_identifier)
         object_identifier = int(object_identifier)
         with self.object_cache_lock:
             identifier = (tile_identifier, object_identifier)
-            path = self.get_tile_directory(tile_identifier) / 'data' / str(object_identifier) + '.geoobj'
-            obj.to_file(path)
+            obj.to_file(self._get_object_path(tile_identifier, object_identifier))
             self.object_cache[identifier] = obj
 
-    def get_object_for_identifier(self, tile_identifier: Tuple, object_identifier: int) -> Optional[BoxStorageObjectInterface]:
+    def get_object_for_identifier(self, tile_identifier: Tuple, object_identifier: int) -> Optional[BBoxStorageObjectInterface]:
         tile_identifier = tuple(tile_identifier)
         object_identifier = int(object_identifier)
         with self.object_cache_lock:
@@ -179,41 +188,41 @@ class BoxStorage:
             if identifier in self.object_cache:
                 return self.object_cache[identifier]
             else:
-                path = self.get_tile_directory(tile_identifier) / 'data' / str(object_identifier) + '.geoobj'
-                res =  self.object_type.from_file(path)
+                res = self.object_type.from_file(self._get_object_path(tile_identifier, object_identifier))
                 self.object_cache[identifier] = res
                 return res
 
     def get_tile_identifiers_for_bbox(self, requ_min: np.ndarray, requ_max: np.ndarray) -> np.ndarray:
         requ_min = ((requ_min - self.bounds[:self.dims]) / self.tile_size).astype(int)
-        requ_max = np.ceil((requ_max - self.bounds[self.dims:]) / self.tile_size).astype(int)
+        requ_max = np.ceil((requ_max - self.bounds[:self.dims]) / self.tile_size).astype(int)
         ranges = [np.arange(axis_min, axis_max) for axis_min, axis_max in zip(requ_min, requ_max)]
         tiles = np.stack([a.flatten() for a in np.meshgrid(*ranges, indexing='ij')], axis=1)
         return tiles
 
-    def get_tiles_for_bbox(self, requ_min: np.ndarray, requ_max: np.ndarray) -> List[BoxStorageTileIndex]:
+    def get_tiles_for_bbox(self, requ_min: np.ndarray, requ_max: np.ndarray) -> List[BBoxStorageTileIndex]:
         tiles = self.get_tile_identifiers_for_bbox(requ_min, requ_max)
         res = []
         for tile_index in tiles:
-            res.append(self.get_tile(tile_index))
+            res.append(self.get_tile(tuple(tile_index)))
         return res
 
-    def get_objects_for_bbox(self, requ_min: np.ndarray, requ_max: np.ndarray) -> List[BoxStorageObjectInterface]:
+    def get_objects_for_bbox(self, requ_min: np.ndarray, requ_max: np.ndarray) -> List[BBoxStorageObjectInterface]:
         with self.rw_lock.r_locked():
             tiles = self.get_tiles_for_bbox(requ_min, requ_max)
             candidates  = []
-            for tile_index in tiles:
-                candidates.append(self.get_tile(tile_index).filter_boxes_by_bbox(requ_min, requ_max))
+            for tile in tiles:
+                candidates.append(tile.filter_boxes_by_bbox(requ_min, requ_max))
             candidates = np.unique(np.concatenate(candidates, axis=0), axis=0)
             candidates = np.split(candidates, np.unique(candidates[:, :self.dims], return_index=True, axis=0)[1][1:])
             res = []
-            for candidate in candidates:
-                obj = self.get_object_for_identifier(candidate[:self.dims], candidate[-1])
-                if obj.is_intersecting_bbox(requ_min, requ_max):
+            for tile_candidates in candidates:
+                for candidate in tile_candidates:
+                    obj = self.get_object_for_identifier(candidate[:self.dims], candidate[-1])
+                    #if obj.is_intersecting_bbox(requ_min, requ_max):
                     res.append(obj)
             return res
 
-    def write_objecs(self, objects: List[BoxStorageObjectInterface]):
+    def write_objecs(self, objects: List[BBoxStorageObjectInterface]):
         with self.rw_lock.w_locked():
             bounds = np.array([obj.get_bounds() for obj in objects])
             assert bounds.shape[1] == 2 * self.dims
@@ -224,12 +233,12 @@ class BoxStorage:
                 obj_tiles = self.get_tile_identifiers_for_bbox(bbox_min, bbox_max)
                 identifier = tuple(center)
                 tile = self.get_tile(identifier)
-                obj_id = tile.write_own_object([*bbox_min, *bbox_max], obj)
+                obj_id = tile.write_own_object(np.array([*bbox_min, *bbox_max]), obj, flush=False)
                 written_tiles.add(tile)
                 for tile_id in obj_tiles:
-                    if tile_id!=identifier:
+                    if tuple(tile_id)!=identifier:
                         tile = self.get_tile(tile_id)
-                        tile.write_foreign_object([*bbox_min, *bbox_max], obj, tile_id, obj_id)
+                        tile.write_foreign_object([*bbox_min, *bbox_max], obj, tile_id, obj_id, flush=False)
                         written_tiles.add(tile)
             for tile in written_tiles:
                 tile.flush()

@@ -124,6 +124,7 @@ RUN mamba install -n env -c conda-forge cachetools -y
 RUN conda activate env; pip install pylas
 RUN conda activate env; pip install triangle
 RUN conda activate env; pip install loky
+RUN conda activate env; pip install python-fcl
 
 ################################## Npm Dependencies ##################################
 RUN apt update
