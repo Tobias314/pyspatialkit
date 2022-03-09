@@ -83,7 +83,7 @@ class GeoMesh(BBoxStorageObjectInterface):
 
     @classmethod
     def from_file(cls, path: Path) -> 'GeoMesh':
-        data = np.load(path)
+        data = np.load(str(path) + '.npz')
         crs = GeoCrs.from_str(data['crs'])
         tmesh = Trimesh(vertices=data['vertices'], faces=data['faces'])
         return cls(trimesh=tmesh, crs=crs)

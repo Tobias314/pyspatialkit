@@ -1,13 +1,19 @@
 from pathlib import Path
-from typing import Union, Tuple, Type, List, Optional
+from typing import Union, Tuple, Type, List, Optional, Dict
 from threading import Lock
 import json
 from abc import ABC, abstractmethod, abstractclassmethod
+import shutil
 
 import numpy as np
 from cachetools import LRUCache
+import fasteners
+import csv
 
 from ...utils.threading import RWLock
+
+LOCK_FILE_NAME = 'lock.lck'
+INDEX_FILE_NAME = 'index'
 
 
 class BBoxStorageObjectInterface(ABC):
@@ -48,16 +54,22 @@ class BBoxStorageTileIndex:
         self.unflushed_foreign_index_ids = []
         self.max_item = np.array([max_item], dtype=np.uint32)
         self.dims = len(identifier)
+        self._file_lock = None
+        self._directory_path = None
 
     def persist_to_file(self):
-        path = self.storage.get_tile_directory(self.identifier) / '.index'
-        np.savez(file=path, max_item=self.max_item, own_index_boxes=self.own_index_boxes, own_index_ids=self.own_index_ids,
-                 foreign_index_boxes=self.foreign_index_boxes, foreign_index_ids=self.foreign_index_ids)
+        path = self.directory_path / INDEX_FILE_NAME
+        with self.file_lock.write_lock():
+            np.savez(file=path, max_item=self.max_item, own_index_boxes=self.own_index_boxes, own_index_ids=self.own_index_ids,
+                    foreign_index_boxes=self.foreign_index_boxes, foreign_index_ids=self.foreign_index_ids)
 
     @classmethod
     def load_from_file(cls, storage: 'BBoxStorage', identifier: Union[Tuple[int,int], Tuple[int,int,int]]):
         try:
-            data = np.load(storage.get_tile_directory(identifier) / '.index')
+            directory_path = storage.get_tile_directory(identifier)
+            file_lock = fasteners.InterProcessReaderWriterLock(storage.get_tile_directory(identifier) / LOCK_FILE_NAME)
+            with file_lock.read_lock():
+                data = np.load(directory_path / (INDEX_FILE_NAME + '.npz'))
             max_item = data['max_item'][0]
             return cls(storage=storage, identifier=identifier, 
                     own_index_boxes=data['own_index_boxes'],own_index_ids=data['own_index_ids'],
@@ -76,7 +88,7 @@ class BBoxStorageTileIndex:
         mask = np.logical_not((requ_min > index_maxs).any(axis=1) | (requ_max < index_mins).any(axis=1))
         res1 = self.own_index_ids[mask]
         res1 = np.concatenate([np.repeat([self.identifier], res1.shape[0], axis=0), res1[:, np.newaxis]], axis=1)
-        ndex_mins = self.foreign_index_boxes[:, :self.dims]
+        index_mins = self.foreign_index_boxes[:, :self.dims]
         index_maxs = self.foreign_index_boxes[:, self.dims:]
         mask = np.logical_not((requ_min > index_maxs).any(axis=1) | (requ_max < index_mins).any(axis=1))
         res2 = self.foreign_index_ids[mask]
@@ -93,6 +105,7 @@ class BBoxStorageTileIndex:
         self.unflushed_changes = True
         if flush:
             self.flush()
+        return self.max_item.item()
     
     def write_foreign_object(self, bounds: np.ndarray, obj: BBoxStorageObjectInterface, foreign_tile_identifier, foreign_object_identifier,
                              flush=True) -> int:
@@ -103,7 +116,6 @@ class BBoxStorageTileIndex:
             self.flush()
         else:
             self.unflushed_changes = True
-        return self.max_item.item()
 
     def flush(self):
         if self.unflushed_changes:
@@ -120,12 +132,24 @@ class BBoxStorageTileIndex:
         self.persist_to_file()
         self.unflushed_changes = False
 
+    @property
+    def directory_path(self):
+        if self._directory_path is None:
+            self._directory_path = self.storage.get_tile_directory(self.identifier)
+        return self._directory_path
+
+    @property
+    def file_lock(self):
+        if self._file_lock is None:
+            self._file_lock = fasteners.InterProcessReaderWriterLock(self.directory_path / LOCK_FILE_NAME)
+        return self._file_lock
 
 class BBoxStorage:
 
     def __init__(self, directory_path: Path, bounds: Union[Tuple[float,float,float,float], Tuple[float,float,float,float,float,float]],
                  tile_size: Union[Tuple[float, float], Tuple[float,float,float]], object_type: BBoxStorageObjectInterface,
-                 tile_cache_size: int = 100, object_cache_size: int = 1000):
+                 tile_cache_size: int = 100, object_cache_size: int = 1000,
+                 tile_bboxes: Dict[Tuple,Tuple[Tuple,Tuple]] = {}):
         self.directory_path= directory_path
         self.bounds = np.array(bounds)
         if len(tile_size) * 2 != len(self.bounds):
@@ -140,25 +164,49 @@ class BBoxStorage:
         self.object_cache_lock = Lock()
         self.object_type = object_type
         self.rw_lock = RWLock()
+        self.tile_bboxes = tile_bboxes
+        self._file_lock = None
 
-    def persist_to_file(self):
-        config = {}
-        config['bounds'] = tuple(self.bounds)
-        config['tile_size'] = tuple(self.tile_size)
-        config['tile_cache_size'] = self.tile_cache_size
-        config['object_cache_size'] = self.object_cache_size
-        json.dump
+    @property
+    def file_lock(self):
+        if self._file_lock is None:
+            self._file_lock =  fasteners.InterProcessReaderWriterLock(self.directory_path / LOCK_FILE_NAME)
+        return self._file_lock
+
+    def persist_to_file(self,bbox_tiles_only=False):
+        with self.file_lock.write_lock():
+            if not bbox_tiles_only:
+                config = {}
+                config['bounds'] = [float(b) for b in self.bounds]
+                config['tile_size'] = [float(s) for s in self.tile_size]
+                config['tile_cache_size'] = int(self.tile_cache_size)
+                config['object_cache_size'] = int(self.object_cache_size)
+                with open(self.directory_path / 'config.json', 'w') as json_file:
+                    json.dump(config, json_file)
+            with open(self.directory_path / 'tile_bboxes.csv', 'w') as tile_bboxes_file:
+                    csv_writer = csv.writer(tile_bboxes_file, delimiter=',')
+                    for key, bbox in self.tile_bboxes.items():
+                        csv_writer.writerow(list(key) + list(bbox[0]) + list(bbox[1]))
+            
 
     def get_tile_directory(self, identifier: Union[Tuple[int, int], Tuple[int, int, int]]):
         return self.directory_path / '_'.join([str(i) for i in identifier])
 
     @classmethod
     def load_from_file(cls, directory_path: Path, object_type: Type):
-         with open(directory_path / 'config.json') as json_file:
-            config = json_file.read()
-            config = json.loads(config)
-            return cls(directory_path=directory_path, bounds=config['bounds'], tile_size=config['tile_size'],
-                       tile_cache_size=config['tile_cache_size'], object_type=object_type)
+        file_lock =  fasteners.InterProcessReaderWriterLock(directory_path / LOCK_FILE_NAME)
+        tile_bboxes = {}
+        with file_lock.read_lock():
+            with open(directory_path / 'tile_bboxes.csv') as tile_bboxes_file:
+                csv_reader = csv.reader(tile_bboxes_file, delimiter=',',)
+                for row in csv_reader:
+                    tile_bboxes[(row[0], row[1], row[2])] = (row[3:6], row[6:])
+            with open(directory_path / 'config.json') as json_file:
+                config = json_file.read()
+                config = json.loads(config)
+                res =  cls(directory_path=directory_path, bounds=config['bounds'], tile_size=config['tile_size'],
+                           tile_cache_size=config['tile_cache_size'], object_type=object_type, tile_bboxes = tile_bboxes)
+        res.persist_to_file(bbox_tiles_only=True)
 
     def get_tile(self, identifier: Tuple):
         with self.tile_cache_lock:
@@ -229,22 +277,44 @@ class BBoxStorage:
             bbox_mins, bbox_maxs = bounds[:,:self.dims], bounds[:,self.dims:]
             centers = (((bbox_maxs - bbox_mins) / 2 - self.bounds[:self.dims]) / self.tile_size).astype(int)
             written_tiles = set()
+            new_tile_bboxes = {}
             for i, (bbox_min, bbox_max, center, obj) in enumerate(zip(bbox_mins, bbox_maxs, centers, objects)):
                 obj_tiles = self.get_tile_identifiers_for_bbox(bbox_min, bbox_max)
                 identifier = tuple(center)
                 tile = self.get_tile(identifier)
-                obj_id = tile.write_own_object(np.array([*bbox_min, *bbox_max]), obj, flush=False)
+                if identifier not in self.tile_bboxes:
+                    self.tile_bboxes[identifier] = (bbox_min, bbox_max)
+                    new_tile_bboxes[identifier] = (bbox_min, bbox_max)
+                else:
+                    old_min, old_max = self.tile_bboxes[identifier]
+                    old_min, old_max = np.array(old_min), np.array(old_max)
+                    new_min = np.minimum(old_min, bbox_min)
+                    new_max = np.maximum(old_max, bbox_max)
+                    if (new_min!=old_min).any() or (new_max != old_max).any():
+                        self.tile_bboxes[identifier] = (new_min, new_max)
+                        new_tile_bboxes[identifier] = (new_min, new_max)
+                object_bounds = np.array([*bbox_min, *bbox_max])
+                obj_id = tile.write_own_object(object_bounds, obj, flush=False)
                 written_tiles.add(tile)
                 for tile_id in obj_tiles:
-                    if tuple(tile_id)!=identifier:
+                    tile_id = tuple(tile_id)
+                    if tile_id!=identifier:
                         tile = self.get_tile(tile_id)
-                        tile.write_foreign_object([*bbox_min, *bbox_max], obj, tile_id, obj_id, flush=False)
+                        tile.write_foreign_object(object_bounds, obj, identifier, obj_id, flush=False)
                         written_tiles.add(tile)
             for tile in written_tiles:
                 tile.flush()
+            with self.file_lock.write_lock():
+                with open(self.directory_path / 'tile_bboxes.csv', 'a') as tile_bboxes_file:
+                    csv_writer = csv.writer(tile_bboxes_file, delimiter=',')
+                    for key, bbox in new_tile_bboxes.items():
+                        csv_writer.writerow(list(key) + list(bbox[0]) + list(bbox[1]))
 
     def invalidate_cache(self):
         self.tile_cache = LRUCache(self.tile_cache_size)
         self.object_cache = LRUCache(self.object_cache_size)
+
+    def delete_permanently(self):
+        shutil.rmtree(self.directory_path)
 
 

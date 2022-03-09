@@ -125,6 +125,7 @@ RUN conda activate env; pip install pylas
 RUN conda activate env; pip install triangle
 RUN conda activate env; pip install loky
 RUN conda activate env; pip install python-fcl
+RUN conda activate env; pip install fasteners
 
 ################################## Npm Dependencies ##################################
 RUN apt update

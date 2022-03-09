@@ -57,9 +57,11 @@ class GeoMeshLayer(GeoLayer):
         config['ojbect_cache_size'] = self.object_cache_size
         with open(dir_path / 'config.json', 'w') as json_file:
             json.dump(config, json_file)
+        self.backend.persist_to_file()
 
     def load_data(self, dir_path: Path):
         with open(dir_path / 'config.json') as config:
+            config = json.load(config)
             self._crs = GeoCrs.from_dict(config['crs'])
             self._bounds = config['bounds']
             self.tile_size = config['tile_size']
