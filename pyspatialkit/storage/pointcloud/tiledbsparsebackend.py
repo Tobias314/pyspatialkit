@@ -12,7 +12,7 @@ import pandas as pd
 
 from ...utils.numpy import next_bigger_dtype
 from ...utils.bounds import bounds3d_half_surface_area, bounds3d_edge_lengths, bounds3d_volume
-from ...utils.logging import dbg
+from ...utils.logging import dbg, raise_warning
 
 POINT_PYRAMID_REDUCTION_FACTOR = 5
 AXIS_NAMES = ['x', 'y', 'z']
@@ -103,12 +103,22 @@ class TileDbSparseBackend:
                 attributes[column] = data[column].to_numpy()
         if self._no_attributes:
             attributes = np.full(data.shape[0], 1, dtype=np.uint8)
-        self.levels[0][1].close()
+        if self.levels[0][1] is not None:
+            self.levels[0][1].close()
         with tiledb.SparseArray(self.levels[0][0], mode='w') as db:
             x = data[AXIS_NAMES[0]].to_numpy()
             y = data[AXIS_NAMES[1]].to_numpy()
             z = data[AXIS_NAMES[2]].to_numpy()
-            db[x, y, z] = attributes
+            try:
+                db[x, y, z] = attributes
+            except tiledb.TileDBError as error:
+                #TODO: make sure whether it has to be x<=bounds[3] ... or x<bounds[3]
+                mask = (x>=self.bounds[0]) & (y>=self.bounds[1]) & (z>=self.bounds[2]) & (x<=self.bounds[3]) & (y<=self.bounds[4]) & (z<=self.bounds[5])
+                if not mask.all():
+                    raise_warning("Out of bounds write, writing only values inside of layer bounds...")
+                    db[x[mask], y[mask], z[mask]] = attributes[mask]
+                else:
+                    raise error
             if self.build_pyramid:
                 bounds = (x.min(), y.min(), z.min(), x.max(), y.max(), z.max())
                 self.dirty_boxes.append(bounds)

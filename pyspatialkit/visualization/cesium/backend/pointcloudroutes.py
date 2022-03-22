@@ -72,5 +72,5 @@ async def get_point_cloud_content(request: Request, layer: str, tile_descriptor:
         tile_identifier = GeoPointCloudTileIdentifier(m[0], m[1:4])
         tile = tileset.get_tile_by_identifier(tile_identifier)
         json_dict, _ = tileset.materialize(tile_uri_generator=_uri_generator, tile_content_uri_generator=_content_uri_generator,
-                                        root_tile=tile, max_depth=1)
+                                           root_tile=tile, max_depth=1)
     return json_dict
