@@ -43,6 +43,7 @@ class GeoLayer(ABC):
             self.directory_path = directory_path
         self.load_data(directory_path)
 
+    #TODO: think about locking the file to prevent concurrent write problems
     def persist(self, directory_path: Optional[Path] = None):
         if directory_path is None:
             directory_path = self.directory_path
@@ -73,7 +74,6 @@ class GeoLayer(ABC):
         shutil.rmtree(self.directory_path)
 
     def __getstate__(self) -> str:
-        self.persist()
         return str(self.directory_path)
 
     def __setstate__(self, path: str) -> 'GeoLayer':

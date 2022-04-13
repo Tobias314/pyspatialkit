@@ -51,8 +51,8 @@ class GeoRasterLayer(GeoLayer):
         config['num_bands'] = self.num_bands
         config['dtype'] = np.dtype(self.dtype).str
         config['crs'] = self.crs.to_dict()
-        config['bounds'] = self.bounds
-        config['pixel_size'] = self.pixel_size_xy
+        config['bounds'] = list(self.bounds)
+        config['pixel_size'] = list(self.pixel_size_xy)
         config['fill_value'] = self.fill_value
         config['build_pyramid'] = self.build_pyramid
         config['_eager_pyramid_update'] = self._eager_pyramid_update
@@ -66,8 +66,8 @@ class GeoRasterLayer(GeoLayer):
             self.num_bands = config['num_bands']
             self.dtype = np.dtype(config['dtype'])
             self._crs = GeoCrs.from_dict(config['crs'])
-            self.bounds = config['bounds']
-            self.pixel_size_xy = config['pixel_size']
+            self.bounds = np.array(config['bounds'])
+            self.pixel_size_xy = np.array(config['pixel_size'])
             self.fill_value = config['fill_value']
             self.build_pyramid = config['build_pyramid']
             self._eager_pyramid_update = config['_eager_pyramid_update']

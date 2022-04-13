@@ -72,7 +72,7 @@ class GeoPointCloudLayer(GeoLayer, GeoPointCloudReadable, GeoPointCloudWritable)
         config['build_pyramid'] = self.build_pyramid
         config['data_schema'] = datascheme_to_str_dict(self._data_scheme)
         config['point_density'] = self.point_density
-        config['backend_space_tile_size'] = self.backend_space_tile_size
+        config['backend_space_tile_size'] = list(self.backend_space_tile_size)
         config['rgb_max'] = self.rgb_max
         with open(dir_path / 'config.json', 'w') as json_file:
             json.dump(config, json_file)

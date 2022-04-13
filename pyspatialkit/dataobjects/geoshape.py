@@ -70,6 +70,9 @@ class GeoShape:
     def to_shapely(self):
         return self.shape
 
+    def to_geopandas(self):
+        return gpd.GeoDataFrame(geometry=[self.to_shapely()], crs=self.crs.to_pyproj_crs())
+
     def to_geoviews(self):
         shp = self.to_crs(GeoCrs.from_epsg(4326),inplace=False)
         return get_geoviews().Shape(shp.to_shapely())
