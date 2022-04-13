@@ -55,9 +55,9 @@ class GeoPointCloudLayer(GeoLayer, GeoPointCloudReadable, GeoPointCloudWritable)
         self.point_density = point_density
         if backend_space_tile_size is None:
             tmp = DEFAULT_POINT_PER_METER_1D / self.point_density
-            self.backend_space_tile_size = (tmp, tmp, tmp)
+            self.backend_space_tile_size = np.array((tmp, tmp, tmp))
         else:
-            self.backend_space_tile_size = backend_space_tile_size
+            self.backend_space_tile_size = np.array(backend_space_tile_size)
         self.rgb_max = rgb_max
         self.backend = TileDbSparseBackend(bounds=self._bounds, directory_path=self.directory_path / BACKEND_DIRECTORY_NAME,
                                            data_scheme=self._data_scheme,
@@ -86,7 +86,7 @@ class GeoPointCloudLayer(GeoLayer, GeoPointCloudReadable, GeoPointCloudWritable)
             self.build_pyramid = config['build_pyramid']
             self._data_scheme = datascheme_from_str_dict(config['data_schema'])
             self.point_density = config['point_density']
-            self.backend_space_tile_size = config['backend_space_tile_size']
+            self.backend_space_tile_size = np.array(config['backend_space_tile_size'])
             self.rgb_max = config['rgb_max']
             self.backend = TileDbSparseBackend(bounds=self._bounds, directory_path=self.directory_path / BACKEND_DIRECTORY_NAME,
                                                 data_scheme=self._data_scheme,
@@ -145,8 +145,10 @@ class GeoPointCloudLayer(GeoLayer, GeoPointCloudReadable, GeoPointCloudWritable)
     @property
     def visualizer_tileset(self):
         if self._visualizer_tileset is None:
-            self._visualizer_tileset = GeoPointCloudTileset3d(self, tile_size=self.backend_space_tile_size,
-                                                              geometric_error_multiplier=10*self.point_density)
+            ts = self.backend_space_tile_size*2
+            print(ts)
+            self._visualizer_tileset = GeoPointCloudTileset3d(self, tile_size=ts,
+                                                              geometric_error_multiplier=8*self.point_density)
         return self._visualizer_tileset
 
     @property

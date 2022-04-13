@@ -61,7 +61,13 @@ async def get_wms_capabilities(request: Request, layer: str,
         get_raster_start = time.time()
         #try:
         #import pdb; pdb.set_trace()
-        raster = layer.get_raster_for_rect(georect, no_data_value=int(0), resolution_rc=(int(HEIGHT), int(WIDTH)))
+        raster = layer.get_data(georect, no_data_value=int(0), resolution_rc=(int(HEIGHT), int(WIDTH)))
+        shp = raster.shape
+        if shp[2] > 3:
+            raster.data = raster.data[:,:,:3]
+        elif shp[2] < 3:
+            data = raster.data[:,:,0]
+            raster.data = np.concatenate([data,data,data], axis=2)
         #print(raster.data.sum())
         raster_data = raster.data.astype(np.uint8)
         #print("BOUNDS: " + str(bbx))

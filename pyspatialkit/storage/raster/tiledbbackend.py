@@ -6,6 +6,7 @@ import shutil
 
 import numpy as np
 import tiledb
+from tqdm.auto import tqdm
 
 from ...utils.numpy import next_bigger_dtype
 
@@ -57,7 +58,7 @@ class TileDbBackend:
                 tiledb.Array.create(path, schema)
             self.layers[i] = [path, tiledb.DenseArray(path, mode='r')]
         if self.build_pyramid:
-            self.dirty_regions = []
+            self.dirty_regions = set()
 
     def _bounds_to_indexes(self, bounds: Tuple[float, float, float, float]) -> np.ndarray:
         index_bounds = np.array(bounds)
@@ -119,10 +120,13 @@ class TileDbBackend:
             db.close()
 
     #TODO: merge bounds at every level to increase performance of batch updates
-    def update_pyramid(self) -> None:
+    def update_pyramid(self, print_progress: bool = False) -> None:
         print("UPDATING PYRAMIDS")
         dirty_regions = self.dirty_regions
-        for layer in range(1, self.num_pyramid_layers+1):
+        layer_iterator = range(1, self.num_pyramid_layers+1)
+        if print_progress:
+            layer_iterator = tqdm(layer_iterator)
+        for layer in layer_iterator:
             write_db_path = self.layers[layer][0]
             new_dirty_regions = []
             self.layers[layer][1].close()
@@ -131,7 +135,10 @@ class TileDbBackend:
                 lower_layer = self.layers[layer-1]
                 if  lower_layer[1] is None:
                     lower_layer[1] = tiledb.DenseArray(lower_layer[0], mode='r')
-                for index_bounds in dirty_regions:
+                dirty_regions_iterator = tqdm(dirty_regions)
+                if print_progress:
+                    layer_iterator = tqdm(dirty_regions_iterator)
+                for index_bounds in dirty_regions_iterator:
                     upper_level_index_bounds = np.concatenate([np.floor(index_bounds[:2] / 2), np.ceil(index_bounds[2:4] / 2)]).astype(int)
                     index_bounds = upper_level_index_bounds * 2
                     #print(index_bounds)

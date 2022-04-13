@@ -39,6 +39,11 @@ class GeoPointCloudTile3d(Tile3d):
             pc = self.tileset.point_cloud.get_data(self.bbox)
             if pc.shape[0] == 0:
                 return None
+            z = pc.z.to_numpy()
+            brightness = 50 + (np.abs(z) % 20) * 100
+            brightness = brightness.astype(np.uint8)
+            rgb = np.repeat(z[:,np.newaxis], repeats=3, axis=1)
+            pc.rgb = rgb
             pc.to_crs(crs_transformer=self.tileset.to_epsg4978_transformer, inplace=True)
             return pc
         else:
