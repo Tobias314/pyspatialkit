@@ -4,6 +4,7 @@ import math
 import time
 import shutil
 from collections import OrderedDict
+from threading import Thread
 
 import numpy as np
 from numpy.lib.shape_base import tile
@@ -13,6 +14,7 @@ import pandas as pd
 from ...utils.numpy import next_bigger_dtype
 from ...utils.bounds import bounds3d_half_surface_area, bounds3d_edge_lengths, bounds3d_volume
 from ...utils.logging import dbg, raise_warning
+from ...utils.tiledb import consolidate_and_vacuume
 
 POINT_PYRAMID_REDUCTION_FACTOR = 5
 AXIS_NAMES = ['x', 'y', 'z']
@@ -88,6 +90,7 @@ class TileDbSparseBackend:
             self.levels[i] = [path, None]
         if self.build_pyramid:
             self.dirty_boxes = []
+        self._consolidation_thread: Optional[Thread] = None
 
     def write_data(self, data: pd.DataFrame) -> None:
         columns = data.columns
@@ -194,6 +197,16 @@ class TileDbSparseBackend:
             if level[1] is not None:
                 level[1].close()
                 level[1] = None
+                
+    def consolidate_and_vacuum(self):
+        uris = []
+        for layer in levels:
+            if layer[1] is not None:
+                layer[1].close()
+            uris.append(layer[0])
+        if self._consolidation_thread is None or not self._consolidation_thread.is_alive():
+            self._consolidation_thread = Thread(target = consolidate_and_vacuume, args=(uris,))
+            self._consolidation_thread.start()            
 
     def delete_permanently(self):
         for level in self.levels:

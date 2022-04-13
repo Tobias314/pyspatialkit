@@ -72,7 +72,7 @@ class GeoPointCloudLayer(GeoLayer, GeoPointCloudReadable, GeoPointCloudWritable)
         config['build_pyramid'] = self.build_pyramid
         config['data_schema'] = datascheme_to_str_dict(self._data_scheme)
         config['point_density'] = self.point_density
-        config['backend_space_tile_size'] = self.backend_space_tile_size
+        config['backend_space_tile_size'] = tuple(self.backend_space_tile_size)
         config['rgb_max'] = self.rgb_max
         with open(dir_path / 'config.json', 'w') as json_file:
             json.dump(config, json_file)
@@ -93,6 +93,7 @@ class GeoPointCloudLayer(GeoLayer, GeoPointCloudReadable, GeoPointCloudWritable)
                                                 space_tile_size=self.backend_space_tile_size,
                                                 build_pyramid=self.build_pyramid)
         self._visualizer_tileset = None
+        self._eager_pyramid_update = True
 
     def get_data(self, geobox: Union[GeoBox3d, GeoBox2d], attributes: Optional[List[str]] = None) -> GeoPointCloud:
         if isinstance(geobox, GeoBox2d):
@@ -122,6 +123,7 @@ class GeoPointCloudLayer(GeoLayer, GeoPointCloudReadable, GeoPointCloudWritable)
             if self.build_pyramid:
                 self.backend.update_pyramid()
             self._eager_pyramid_update = True
+        self.backend.consolidate_and_vacuum()
 
     def apply(self, tiler: GeoBoxTiler3d,
               transformer: Callable[[GeoPointCloud], Optional[GeoPointCloud]],
@@ -145,8 +147,7 @@ class GeoPointCloudLayer(GeoLayer, GeoPointCloudReadable, GeoPointCloudWritable)
     @property
     def visualizer_tileset(self):
         if self._visualizer_tileset is None:
-            ts = self.backend_space_tile_size*2
-            print(ts)
+            ts = self.backend_space_tile_size*4
             self._visualizer_tileset = GeoPointCloudTileset3d(self, tile_size=ts,
                                                               geometric_error_multiplier=8*self.point_density)
         return self._visualizer_tileset

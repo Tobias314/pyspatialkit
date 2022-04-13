@@ -15,7 +15,7 @@ from ...tiling.geotiler2d import GeoTiler2d
 from ..geolayer import GeoLayer
 from ...crs.geocrs import GeoCrs, NoneCRS
 from ...crs.utils import crs_bounds
-from .tiledbbackend import TileDbBackend
+from .tiledbdensebackend import TileDbDenseBackend
 from ...spacedescriptors.georect import GeoRect
 from ...dataobjects.georaster import GeoRaster
 
@@ -42,9 +42,9 @@ class GeoRasterLayer(GeoLayer):
         self.fill_value = fill_value
         self.build_pyramid = build_pyramid
         self._eager_pyramid_update = True
-        self.backend = TileDbBackend(bounds=self.bounds, num_bands=self.num_bands, dtype=self.dtype,
-                                     directory_path=self.directory_path / BACKEND_DIRECTORY_NAME, fill_value=self.fill_value, 
-                                     pixel_size_xy=self.pixel_size_xy, build_pyramid=self.build_pyramid)
+        self.backend = TileDbDenseBackend(bounds=self.bounds, num_bands=self.num_bands, dtype=self.dtype,
+                                          directory_path=self.directory_path / BACKEND_DIRECTORY_NAME, fill_value=self.fill_value, 
+                                          pixel_size_xy=self.pixel_size_xy, build_pyramid=self.build_pyramid)
 
     def persist_data(self, dir_path: Path):
         config = {}
@@ -71,9 +71,10 @@ class GeoRasterLayer(GeoLayer):
             self.fill_value = config['fill_value']
             self.build_pyramid = config['build_pyramid']
             self._eager_pyramid_update = config['_eager_pyramid_update']
-            self.backend = TileDbBackend(bounds=self.bounds, num_bands=self.num_bands, dtype=self.dtype,
-                                        directory_path=self.directory_path / BACKEND_DIRECTORY_NAME, fill_value=self.fill_value, 
-                                        pixel_size_xy=self.pixel_size_xy, build_pyramid=self.build_pyramid)
+            self.backend = TileDbDenseBackend(bounds=self.bounds, num_bands=self.num_bands, dtype=self.dtype,
+                                              directory_path=self.directory_path / BACKEND_DIRECTORY_NAME, fill_value=self.fill_value, 
+                                              pixel_size_xy=self.pixel_size_xy, build_pyramid=self.build_pyramid)
+        self._eager_pyramid_update = True
 
     def get_data(self, georect: GeoRect, resolution_rc: Optional[Tuple[int,int]]=None, band=None, no_data_value=0) -> GeoRaster:
         if georect.crs != self.crs:
@@ -126,6 +127,7 @@ class GeoRasterLayer(GeoLayer):
             if self.build_pyramid:
                 self.backend.update_pyramid()
             self._eager_pyramid_update = True
+        self.backend.consolidate_and_vacuum()
 
     def apply(self, tiler: GeoTiler2d, transformer: Callable[[GeoRaster], Optional[GeoRaster]],
               output_layer: Optional['GeoRasterLayer'] = None,
@@ -148,7 +150,7 @@ class GeoRasterLayer(GeoLayer):
 
     @property
     def name(self):
-        return self.folder_path.name
+        return self.directory_path.name
 
     @property
     def crs(self):

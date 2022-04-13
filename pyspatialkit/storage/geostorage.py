@@ -78,7 +78,6 @@ class GeoStorage(GeoLayerOwner):
             logger().warning("A layer with this name does not exist. No layer will be deleted")
             return False
         self.layers[layer_name].delete_permanently()
-        del self.layers[layer_name]
 
     def _add_layer(self, layer_name: str, layer_type: type, *args, **kwargs) -> GeoLayer:
         if layer_name in self.layers:
@@ -104,6 +103,7 @@ class GeoStorage(GeoLayerOwner):
 
     def on_child_delete(self, child: GeoLayer):
         del self.layers[child.name]
+        self.persist_configuration()
 
     def __getstate__(self) -> str:
         self.persist()

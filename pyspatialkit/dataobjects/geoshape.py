@@ -10,7 +10,6 @@ import geopandas as gpd
 from ..crs.geocrs import GeoCrs
 from ..crs.geocrstransformer import GeoCrsTransformer
 from ..globals import get_geoviews, get_geoviews_back_map
-from ..spacedescriptors import georect
 
 class GeoShape:
 
@@ -69,6 +68,9 @@ class GeoShape:
 
     def to_shapely(self):
         return self.shape
+    
+    def to_geopandas(self) -> gpd.GeoDataFrame:
+        return gpd.GeoDataFrame(geometry = [self.shape], crs=self.crs.to_pyproj_crs())
 
     def to_geoviews(self):
         shp = self.to_crs(GeoCrs.from_epsg(4326),inplace=False)
