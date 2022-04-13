@@ -67,7 +67,7 @@ async def get_wms_capabilities(request: Request, layer: str,
             raster.data = raster.data[:,:,:3]
         elif shp[2] < 3:
             data = raster.data[:,:,0]
-            raster.data = np.concatenate([data,data,data], axis=2)
+            raster.data = np.stack([data,data,data], axis=2)
         #print(raster.data.sum())
         raster_data = raster.data.astype(np.uint8)
         #print("BOUNDS: " + str(bbx))

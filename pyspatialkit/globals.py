@@ -17,8 +17,9 @@ if not LOKY_START_METHOD_SET:
 def configure_tiledb():
     config = tdb.Config()
     config["sm.consolidation.step_min_frags"] = 2
-    config["sm.consolidation.step_max_frags"] = 10
+    config["sm.consolidation.step_max_frags"] = 20
     config["sm.consolidation.steps"] = 100
+    #config["sm.consolidation.step_size_ratio"] = 0.25
     tdb.default_ctx(config=config)
 
 configure_tiledb()
