@@ -44,3 +44,6 @@ mamba install -c conda-forge nodejs -y
 npm install -g npm
 npm install -g typescript
 
+################################## PySpatialKit ##################################
+pip install -e .
+

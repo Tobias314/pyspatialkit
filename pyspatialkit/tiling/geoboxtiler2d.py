@@ -48,7 +48,7 @@ class GeoBoxTiler2d(GeoTiler2d):
         tiles = GeoBoxCollection.from_geobox_list(tiles)
         return tiles
 
-    def get_all_tiles(self):
+    def get_all_tiles(self) -> GeoBoxCollection:
         return self.tiles
 
     @property

@@ -1,3 +1,7 @@
 .full-screen-height{
     height: 100vh
 }
+
+.nobr {
+    white-space: nowrap 
+}

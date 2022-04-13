@@ -5,6 +5,7 @@ sys.path.append('../../../')
 from testing.utils import get_tmp_path, close_all_files_delete_dir
 
 import numpy as np
+import matplotlib
 from matplotlib import pyplot as plt
 
 from pyspatialkit.dataobjects.georaster import GeoRaster
@@ -14,8 +15,8 @@ from pyspatialkit.crs.geocrs import NoneCRS
 class TestGeoRaster(unittest.TestCase):
 
     def setUp(self):
-        self.raster1 = GeoRaster(GeoRect((0,0), (1000,1000)), np.zeros((1000,1000)))
-        self.raster2 = GeoRaster(GeoRect((750,300), (1750,1100)), np.ones((1000,1000)))
+        self.raster1 = GeoRaster(GeoRect((0,0), (1000,1000), crs=NoneCRS()), np.zeros((1000,1000)))
+        self.raster2 = GeoRaster(GeoRect((750,300), (1750,1100), crs=NoneCRS()), np.ones((1000,1000)))
         print(matplotlib.rcParams['backend'])
 
     def test_merge_projected_other(self):

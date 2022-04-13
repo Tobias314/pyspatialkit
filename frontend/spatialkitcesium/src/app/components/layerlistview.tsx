@@ -19,7 +19,9 @@ export class LayerListView extends React.Component<LayerListProps>{
     render(){
         const listItems = this.props.layers.map((layer, index) => 
                 <ListGroup.Item action key={index} onClick={() => this.props.onToggleLayer(index)} >
-                    {layer.name}  <input type="checkbox" checked={this.props.selectedLayers.has(index)} onChange={() => {}}/>
+                    <div className="nobr">
+                        {layer.name}  <input type="checkbox" checked={this.props.selectedLayers.has(index)} onChange={() => {}}/>
+                    </div>
                 </ListGroup.Item>
         );
         return (

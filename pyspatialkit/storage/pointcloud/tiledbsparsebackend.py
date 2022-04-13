@@ -103,7 +103,8 @@ class TileDbSparseBackend:
                 attributes[column] = data[column].to_numpy()
         if self._no_attributes:
             attributes = np.full(data.shape[0], 1, dtype=np.uint8)
-        self.levels[0][1].close()
+        if self.levels[0][1] is not None:
+            self.levels[0][1].close()
         with tiledb.SparseArray(self.levels[0][0], mode='w') as db:
             x = data[AXIS_NAMES[0]].to_numpy()
             y = data[AXIS_NAMES[1]].to_numpy()
@@ -121,7 +122,8 @@ class TileDbSparseBackend:
         for level in range(1, self.num_pyramid_layers+1):
             write_db_path = self.levels[level][0]
             new_dirty_regions = []
-            self.levels[level][1].close()
+            if self.levels[level][1] is not None:
+                self.levels[level][1].close()
             with tiledb.SparseArray(write_db_path, mode='w') as db:
                 lower_level = self.levels[level-1]
                 if lower_level[1] is None:

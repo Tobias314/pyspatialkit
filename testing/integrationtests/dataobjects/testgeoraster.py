@@ -15,7 +15,7 @@ from pyspatialkit.crs.geocrs import NoneCRS, GeoCrs
 class TestGeoRaster(unittest.TestCase):
     
     def test_load_file_compute_transformation(self):
-        raster = GeoRaster.from_file(get_testdata_path() / "dop100rgbi_32_734_5748_2_st_2020.tif", band=[1,2,3])
+        raster = GeoRaster.from_file(get_testdata_path() / "rgb/dop100rgbi_32_734_5748_2_st_2020.tif", band=[1,2,3])
         web_crs = GeoCrs(CRS.from_epsg(3857))
         raster.to_crs(web_crs)
         inputs = [np.array([raster.shape[0],0,1]), np.array([raster.shape[0],raster.shape[1],1]), np.array([0,raster.shape[1],1]), np.array([0,0,1])]

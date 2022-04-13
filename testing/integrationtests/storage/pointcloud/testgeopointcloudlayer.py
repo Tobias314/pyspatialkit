@@ -47,7 +47,7 @@ class TestGeoPointCloudLayer(unittest.TestCase):
     def test_apply(self):
         self.pclayer.write_data(self.pc)
         means = []
-        def write_mean(pc: GeoPointCloud):
+        def write_mean(pc: GeoPointCloud, _):
             means.append(pc.xyz.mean(axis=0))
         self.pclayer.apply(self.tiler, write_mean)
         print(means)

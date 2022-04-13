@@ -8,7 +8,7 @@ declare interface CesiumViewerProps{
     layers: LayerInterface[]
 }
 
-const targetPosition = Cartesian3.fromDegrees(12.435281, 51.846743, 400)
+const targetPosition = Cartesian3.fromDegrees(12.435281, 51.846743, 110000)
 const cameraFlyTo = <CameraFlyTo destination={targetPosition} duration={15}/>
 
 export class CesiumViewer extends React.Component<CesiumViewerProps>{
@@ -26,7 +26,8 @@ export class CesiumViewer extends React.Component<CesiumViewerProps>{
         
         //<ImageryLayer imageryProvider={imageryProvider} />
         return (
-            <Viewer className="full-screen-height container-fluid" extend={viewerCesium3DTilesInspectorMixin}>
+            //<Viewer className="full-screen-height container-fluid" extend={viewerCesium3DTilesInspectorMixin}>
+            <Viewer className="full-screen-height container-fluid">
                 {cameraFlyTo}
                 {renderComponents}
             </Viewer>

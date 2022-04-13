@@ -135,3 +135,7 @@ RUN sh -c 'curl -fsSL https://deb.nodesource.com/setup_16.x | bash'
 RUN apt install -y nodejs
 RUN npm install -g npm
 RUN npm install -g typescript
+
+COPY pyspatialkit /pyspatialkit/pyspatialkit
+COPY setup.py /pyspatialkit/setup.py
+RUN conda activate env; pip install -e pyspatialkit/
