@@ -132,8 +132,9 @@ class TileDbDenseBackend:
         for layer in layer_iterator:
             write_db_path = self.layers[layer][0]
             new_dirty_regions = []
-            self.layers[layer][1].close()
-            self.layers[layer][1] = None
+            if self.layers[layer][1] is not None:
+                self.layers[layer][1].close()
+                self.layers[layer][1] = None
             with tiledb.DenseArray(write_db_path, mode='w') as db:
                 lower_layer = self.layers[layer-1]
                 if  lower_layer[1] is None:
@@ -174,7 +175,7 @@ class TileDbDenseBackend:
 
     def consolidate_and_vacuum(self):
         uris = []
-        for layer in layers:
+        for layer in self.layers:
             if layer[1] is not None:
                 layer[1].close()
             uris.append(layer[0])

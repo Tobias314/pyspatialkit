@@ -52,7 +52,7 @@ class LowerCaseMiddleware:
         response = await call_next(request)
         return response
 
-def start_server(geostorage: GeoStorage) -> None:
+def start_server(geostorage: GeoStorage, port=8080) -> None:
     print("STARTING SERVER")
     app = FastAPI()
     app.include_router(static_router)
@@ -72,7 +72,7 @@ def start_server(geostorage: GeoStorage) -> None:
     )
     app.geostorage = geostorage
     
-    uvicorn.run(app, host="0.0.0.0", port=8080, log_level="info")
+    uvicorn.run(app, host="0.0.0.0", port=port, log_level="info")
     
     #config = uvicorn.Config(app, host="0.0.0.0", port=8080, log_level="info")
     #server = Server(config=config)

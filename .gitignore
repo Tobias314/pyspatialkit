@@ -1,7 +1,7 @@
 ################################################## custom ##################################################
 testdata/
 tmp/
-/frontend/spatialkitcesium/public
+examples/tree_detection_data/
 
 ################################################## Python ##################################################
 # Byte-compiled / optimized / DLL files

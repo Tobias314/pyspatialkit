@@ -37,15 +37,15 @@ NDVI_THRESH = 0.3
 @layerprocessor
 def tree_detection(box: GeoBox2d, rgbi_layer: GeoRasterLayer, dom_layer: GeoPointCloudLayer, dgm_layer: GeoPointCloudLayer, res_layer: GeoRasterLayer):
     georect = box.to_georect()
-    rgb_raster = rgbi_layer.get_data(georect)
+    rgbi_raster = rgbi_layer.get_data(georect)
     dom_pc = dom_layer.get_data(GeoBox2d.from_georect(georect))
     dgm_pc = dgm_layer.get_data(GeoBox2d.from_georect(georect))
-    dgm_raster = GeoRaster(rgb_raster.georect, np.zeros((*rgb_raster.shape[:2], 1)))
+    dgm_raster = GeoRaster(rgbi_raster.georect, np.zeros((*rgbi_raster.shape[:2], 1)))
     dgm_raster = dgm_pc.project_to_georaster(georaster=dgm_raster, value_field='height', interpolate_holes=True)
-    dom_raster = GeoRaster(rgb_raster.georect, np.zeros((*rgb_raster.shape[:2], 1)))
+    dom_raster = GeoRaster(rgbi_raster.georect, np.zeros((*rgbi_raster.shape[:2], 1)))
     dom_raster = dom_pc.project_to_georaster(georaster=dom_raster, value_field='height', interpolate_holes=True)
     height_above_ground = dom_raster.data - dgm_raster.data
-    ndvi = (rgb_raster.data[:,:,3] - rgb_raster.data[:,:,0]) / (rgb_raster.data[:,:,3] + rgb_raster.data[:,:,0])
+    ndvi = (rgbi_raster.data[:,:,3] - rgbi_raster.data[:,:,0]) / (rgbi_raster.data[:,:,3] + rgbi_raster.data[:,:,0])
     mask = (ndvi >= NDVI_THRESH) & (height_above_ground[:,:,0] >= MIN_TREE_HEIGHT)
     result = GeoRaster(georect, (mask * 255).astype(np.uint8))
     #print(result.data.sum())
@@ -68,6 +68,7 @@ def main():
 
     #Create a geostorage if it does not exist
     if not geostorage_path.is_dir():
+        print("CREATING DATA STORE...")
         #We use PySpatialKit to integrate all data into a single GeoStorage with three layers
         #First we create the GeoStorage
         geostorage_path.mkdir(exist_ok=True, parents=True)
@@ -97,6 +98,8 @@ def main():
         for path in tqdm(pathlist):
             pc = GeoPointCloud.from_xyz_file(path, crs=CRS)
             dom_layer.write_data(pc)
+    else:
+        print("FOUND EXISTING DATA STORE, NO DATA STORE IS CREATED")
     
     #The actual processing
     #We reload all layers from disk (in case they already exisited and we did not create them above)
@@ -111,6 +114,7 @@ def main():
     size = 1000
     tiler = GeoBoxTiler2d(aoi=aoi, raster_size=(size,size), reference_crs=CRS)
     start_time = time.time()
+    print("STARTING THE PROCESSING")
     tree_detection(tiler=tiler, num_workers=3)(rgbi_layer, dom_layer, dgm_layer, res_layer)
     print("DONE! processing took {} seconds.".format(time.time() - start_time))
     
