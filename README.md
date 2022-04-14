@@ -66,6 +66,8 @@ Processing workflows are generally developed on small example data first. For ex
 ### Python Development
 When using a docker container opening the PySpatialKit repository inside Visual Studio Code with the Remote - Containers extension installed will give an option to open the project inside a container. Inside the container running `pip install -e .` once helps to install PySpatialKit in edit mode so that changes to PySpatialKit source code are seen by other packages importing PySpatialKit.
 
+In addition, some test cases for automated testing (mostly integration tests) exist under `/testing`. Contributions providing further test cases are welcome.
+
 ### Front End Development
 We use webpack for compiling and packaging the frontend web application.
 Running `npx webpack build` inside the `frontend/spatialkitcesium` directory packages the frontend and creates a `public` directory which is then served by the Python server. However, for development and debugging a separation of the Python backend server and a development fronted server which automatically reloads when the frontend code changes might help the development process. Therefore, start some form of backend server using PySpatialKit (e.g. using the `start_server(geo_sotrage)` method with a `GeoStorage` object as a parameter). Then change the `BACKEND_URL` constant  in `frontend/spatialkitcesium/src/app/constants.tsx` to the URL of your Python backend server and start a developer server e.g. using the following command:
