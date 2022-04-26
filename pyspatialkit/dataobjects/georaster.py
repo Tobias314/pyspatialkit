@@ -18,8 +18,9 @@ from ..utils.rasterio import save_np_array_as_geotiff
 from ..utils.projection import project_skimage
 from .geoshape import GeoShape
 from ..utils.logging import raise_warning
+from .dataobjectinterface import DataObjectInterface
 
-class GeoRaster:
+class GeoRaster(DataObjectInterface):
 
     def __init__(self, georect: GeoRect, data: np.ndarray):
         self.georect = georect

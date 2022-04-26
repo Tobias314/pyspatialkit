@@ -19,11 +19,11 @@ INDEX_FILE_NAME = 'index'
 class BBoxStorageObjectInterface(ABC):
 
     @abstractmethod
-    def to_file(self, path: Path):
+    def to_bytes(self) -> bytes:
         raise NotImplementedError()
 
     @abstractclassmethod
-    def from_file(cls, path: Path) -> Optional['BBoxStorageObjectInterface']:
+    def from_bytes(cls, bytes) -> Optional['BBoxStorageObjectInterface']:
         raise NotImplementedError()
 
     @abstractmethod
@@ -225,7 +225,9 @@ class BBoxStorage:
         object_identifier = int(object_identifier)
         with self.object_cache_lock:
             identifier = (tile_identifier, object_identifier)
-            obj.to_file(self._get_object_path(tile_identifier, object_identifier))
+            b = obj.to_bytes()
+            with open(self._get_object_path(tile_identifier, object_identifier), 'wb') as f:
+                f.write(b)
             self.object_cache[identifier] = obj
 
     def get_object_for_identifier(self, tile_identifier: Tuple, object_identifier: int) -> Optional[BBoxStorageObjectInterface]:
@@ -236,7 +238,8 @@ class BBoxStorage:
             if identifier in self.object_cache:
                 return self.object_cache[identifier]
             else:
-                res = self.object_type.from_file(self._get_object_path(tile_identifier, object_identifier))
+                with open(self._get_object_path(tile_identifier, object_identifier), 'rb') as f:
+                    res = self.object_type.from_bytes(f.read())
                 self.object_cache[identifier] = res
                 return res
 

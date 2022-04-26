@@ -10,8 +10,9 @@ import geopandas as gpd
 from ..crs.geocrs import GeoCrs
 from ..crs.geocrstransformer import GeoCrsTransformer
 from ..globals import get_geoviews, get_geoviews_back_map
+from .dataobjectinterface import DataObjectInterface
 
-class GeoShape:
+class GeoShape(DataObjectInterface):
 
     def __init__(self, shape: Union[Point, Polygon, LineString], crs: GeoCrs):
         self.shape = shape

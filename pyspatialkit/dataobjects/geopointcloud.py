@@ -26,6 +26,7 @@ from .tiles3d.tiles3dcontentobject import Tiles3dContentObject, Tiles3dContentTy
 from ..processing.pointcloud.pointcloudio import geopointcloud_to_3dtiles_pnts
 from ..processing.pointcloud.filtering import create_filter_from_voxel_grid
 from ..processing.image import interpolation as img_interpolation
+from .dataobjectinterface import DataObjectInterface
 
 
 class GeoPointCloudReadable(ABC):
@@ -57,7 +58,7 @@ class GeoPointCloudWritable(ABC):
         raise NotImplementedError
 
 
-class GeoPointCloud(Tiles3dContentObject, GeoPointCloudReadable, GeoPointCloudWritable):
+class GeoPointCloud(Tiles3dContentObject, GeoPointCloudReadable, GeoPointCloudWritable, DataObjectInterface):
 
     def __init__(self):
         self.data = pd.DataFrame(columns=['x', 'y', 'z'])
@@ -656,6 +657,9 @@ class GeoPointCloud(Tiles3dContentObject, GeoPointCloudReadable, GeoPointCloudWr
     def plot_o3dj(self, class_attribute: Optional[str] = None, color_map=cm.tab20, *args, **kwargs):
         from open3d.web_visualizer import draw as draw_jupyter
         self._plot_o3d(draw_jupyter, class_attribute, color_map, *args, **kwargs)
+
+    def plot(self, class_attribute: Optional[str] = None, color_map=cm.tab20, *args, **kwargs):
+        self.plot_o3d(class_attribute=class_attribute, color_map=color_map, *args, **kwargs)
 
     @property
     def content_type_tile3d(self) -> Tiles3dContentType:

@@ -1,5 +1,6 @@
 from typing import Type, TypeVar, Tuple, Sequence, Optional
 from pathlib import Path
+from io import BytesIO
 
 #import kaolin as kal
 #import torch
@@ -12,7 +13,7 @@ from trimesh.creation import triangulate_polygon
 import fcl
 from trimesh.collision import mesh_to_BVH
 
-from ..crs.geocrs import GeoCrs
+from ..crs.geocrs import GeoCrs, NoneCRS
 from ..crs.geocrstransformer import GeoCrsTransformer
 from ..globals import get_default_crs
 from ..storage.bboxstorage.bboxstorage import BBoxStorageObjectInterface
@@ -28,15 +29,18 @@ class Geo3dMeshData:
 
 class GeoMesh(BBoxStorageObjectInterface):
 
-    @classmethod
-    def from_kalmesh(cls: Type[T], kalmesh, crs:Optional[GeoCrs]=None) -> T:
-        mesh = GeoMesh(trimesh.Trimesh(kalmesh.vertices.numpy(), kalmesh.faces.numpy()),crs=crs)
-        mesh.cached_kalmesh = kalmesh
-        return mesh
+    # @classmethod
+    # def from_kalmesh(cls: Type[T], kalmesh, crs:Optional[GeoCrs]=None) -> T:
+    #     mesh = GeoMesh(trimesh.Trimesh(kalmesh.vertices.numpy(), kalmesh.faces.numpy()),crs=crs)
+    #     mesh.cached_kalmesh = kalmesh
+    #     return mesh
 
     @classmethod
     def from_o3d_mesh(cls: Type[T], o3dmesh, crs:Optional[GeoCrs]=None) -> T:
-        tmesh = trimesh.Trimesh(vertices=o3dmesh.vertices, faces=o3dmesh.triangles)
+        visuals = None
+        if o3dmesh.vertex_colors is not None:
+            visuals = trimesh.visual.ColorVisuals(vertex_colors=o3dmesh.vertex_colors)
+        tmesh = trimesh.Trimesh(vertices=o3dmesh.vertices, faces=o3dmesh.triangles, visual=visuals)
         mesh = cls(tmesh,crs=crs)
         return mesh
 
@@ -45,30 +49,58 @@ class GeoMesh(BBoxStorageObjectInterface):
         return cls(trimesh,crs=crs)
 
     @classmethod
-    def from_shapely(cls: Type[T], polygon: Polygon, crs:Optional[GeoCrs]=None, third_dim: int = 2, third_dim_value: float = 0):
+    def from_shapely(cls: Type[T], polygon: Polygon, crs:Optional[GeoCrs]=NoneCRS(), third_dim: int = 2, third_dim_value: float = 0):
         vert, faces = triangulate_polygon(polygon, engine='earcut') #we only use earcut because it has the better license
         vert = np.insert(vert, third_dim, third_dim_value, axis=1)
         return cls.from_vertices_faces(vert, faces,crs=crs)
 
     @classmethod
-    def from_vertices_faces(cls: Type[T], vertices: np.ndarray, faces: np.ndarray, crs:Optional[GeoCrs]=None):
-        tmesh = trimesh.Trimesh(vertices=vertices, faces=faces)
+    def from_vertices_faces(cls: Type[T], vertices: np.ndarray, faces: np.ndarray, crs: Optional[GeoCrs]=None,
+                            vertex_colors: Optional[np.ndarray] = None):
+        visuals = None
+        if vertex_colors is not None:
+            visuals = trimesh.visual.color.ColorVisuals(vertex_colors=vertex_colors[:,:3].astype(np.int64))
+        tmesh = trimesh.Trimesh(vertices=vertices, faces=faces, visual=visuals, process=False)
         return cls(tmesh,crs=crs)
 
     @classmethod
     def from_others(cls: Type[T], others: Sequence['GeoMesh']) -> T:
-        vertices = []
-        faces = []
-        count = 0
+        tmeshes = []
+        crs = others[0].crs
         for other in others:
-            if other.crs != other[0].crs:
+            if other.crs != crs:
                 raise ValueError("All meshes need to have the same crs to so that they can be combined into one mesh!")
-            vertices.append(other.vertices)
-            faces.append(other.faces + count)
-            count += other.vertices.shape[0]
-        vertices = np.concatenate(vertices, axis=0)
-        faces = np.concatenate(faces, axis=0)
-        return cls.from_vertices_faces(vertices, faces, crs=others[0].crs)
+            tmeshes.append(other.tmesh)
+        res = trimesh.util.concatenate(tmeshes)
+        return cls(trimesh=trimesh, crs=crs)
+        #TODO: delete if no longer needed:
+        # vertices = []
+        # faces = []
+        # vertex_colors = []
+        # count = 0
+        # for other in others:
+        #     if other.crs != others[0].crs:
+        #         raise ValueError("All meshes need to have the same crs to so that they can be combined into one mesh!")
+        #     vertices.append(other.vertices)
+        #     faces.append(other.faces + count)
+        #     vertex_colors.append(other.tmesh.visual.vertex_colors)
+        #     count += other.vertices.shape[0]
+        # vertices = np.concatenate(vertices, axis=0)
+        # faces = np.concatenate(faces, axis=0)
+        # vertex_colors = np.concatenate(vertex_colors, axis=0)
+        # return cls.from_vertices_faces(vertices, faces, crs=others[0].crs, vertex_colors=vertex_colors)
+    
+    @classmethod
+    def from_bytes(cls, binary_rep: bytes)-> Optional['GeoMesh']:
+        crs_str_length = int.from_bytes(binary_rep[:4], 'big')
+        crs = GeoCrs(binary_rep[4:4+crs_str_length].decode('utf-8'))
+        binary_io = BytesIO(binary_rep[4+crs_str_length:])
+        tmesh = trimesh.exchange.load.load(binary_io, file_type='glb')
+        if len(tmesh.geometry) == 1:
+            tmesh = next(iter(tmesh.geometry.values()))
+        else:
+            tmesh = trimesh.util.concatenate(list(tmesh.geometry.values()))
+        return cls(trimesh=tmesh, crs=crs)
 
     def __init__(self, trimesh: Trimesh, crs:Optional[GeoCrs]=None):
         self.tmesh = trimesh
@@ -77,12 +109,18 @@ class GeoMesh(BBoxStorageObjectInterface):
         if self.crs is None:
             self.crs = get_default_crs()
 
-    def to_file(self, path: Path):
+    def to_gmsh_file(self, path: Path):
         crs_str = self.crs.to_str()
         np.savez(path, vertices=self.tmesh.vertices, faces=self.tmesh.faces, crs=np.array([crs_str], dtype=str))
 
+    def to_bytes(self)-> bytes:
+        crs_str = self.crs.to_str().encode('utf-8')
+        crs_str_length = (len(crs_str)).to_bytes(4, 'big')
+        binary_mesh = self.tmesh.export(file_type='glb')
+        return crs_str_length + crs_str + binary_mesh
+
     @classmethod
-    def from_file(cls, path: Path) -> 'GeoMesh':
+    def from_gmsh_file(cls, path: Path) -> 'GeoMesh':
         data = np.load(str(path) + '.npz')
         crs = GeoCrs.from_str(data['crs'])
         tmesh = Trimesh(vertices=data['vertices'], faces=data['faces'])
@@ -115,10 +153,12 @@ class GeoMesh(BBoxStorageObjectInterface):
         return self.tmesh
 
     def to_o3d(self) -> o3d.geometry.TriangleMesh:
-        #vertices = o3d.utility.Vector3dVector(self.vertices)
-        #triangles = o3d.utility.Vector3iVector(self.faces)
-        #return o3d.geometry.TriangleMesh(vertices, triangles)
-        return self.tmesh.as_open3d
+        o3d_mesh = o3d.geometry.TriangleMesh(
+            vertices=o3d.utility.Vector3dVector(self.vertices),
+            triangles=o3d.utility.Vector3iVector(self.faces))
+        o3d_mesh.vertex_colors = o3d.utility.Vector3dVector(self.tmesh.visual.vertex_colors[:,:3].astype(float) / 255)
+        return o3d_mesh
+        #return self.tmesh.as_open3d
 
     def to_crs(self, new_crs: GeoCrs, crs_transformer: Optional[GeoCrsTransformer] = None, inplace:bool=False):
         if new_crs is None:
@@ -157,6 +197,12 @@ class GeoMesh(BBoxStorageObjectInterface):
         mesh = self.to_o3d()
         mesh.compute_triangle_normals()
         draw_jupyter([mesh], *args, **kwargs)
+    
+    def plot_trimesh(self):
+        return self.to_trimesh().show()
+
+    def plot(self):
+        return self.plot_trimesh()
 
     @property
     def vertices(self):
