@@ -94,7 +94,7 @@ class Tile3d(ABC):
         if self._is_content_initialized is False:
             self._content = self.get_content()
             self._is_content_initialized = True
-        if self._content is not None and self.content_type != self._content.content_type_tile3d:
+        if self._content is not None and self.content_type != self._content.get_content_type_tile3d():
             raise TypeError("The type of the content object does not match the content type set for this tile!")
         return self._content
 
@@ -138,7 +138,7 @@ class Tile3d(ABC):
                      callback: Optional[Callable[['Tile3d'], None]] = None) -> Tuple[Dict[str, Union[str, float, int, Dict, List, Tuple]], List['Tile3d']]:
         tile_uri = tile_uri_generator(self)
         if tile_content_uri_generator is None:
-            tile_content_uri = tile_uri + '_content' + TILES3D_CONTENT_TYPE_TO_FILE_ENDING[self.content_type.name]
+            tile_content_uri = tile_uri + '_content' + TILES3D_CONTENT_TYPE_TO_FILE_ENDING[self.content_type.value]
         else:
             tile_content_uri = tile_content_uri_generator(self)
         if max_depth is not None and current_depth > max_depth is not None:

@@ -15,6 +15,7 @@ if TYPE_CHECKING:
 class BBoxStorageTileIdentifier(NamedTuple):
     level: int
     tile_indices: Tuple[int, int ,int]
+    object_id: int = -1
 
 class BBoxStorageTile3d(Tile3d):
     def __init__(self, tileset: 'bboxstoragetileset3d.BBoxStorageTileSet3d',
@@ -36,17 +37,12 @@ class BBoxStorageTile3d(Tile3d):
 
     def get_content(self) -> Tiles3dContentObject:
         #TODO: method and whole class not valid at the moment. Continue work here
-        if self.level == 0:
-            content = self.tileset.bboxstorage.get_objects_for_bbox(requ_min = self.bbox.min, requ_max = self.bbox.max)
-            if len(content) == 0:
-                return None
-            z = pc.z.to_numpy()
-            brightness = 50 + (np.abs(z) % 20) * 100
-            brightness = brightness.astype(np.uint8)
-            rgb = np.repeat(z[:,np.newaxis], repeats=3, axis=1)
-            pc.rgb = rgb
-            pc.to_crs(crs_transformer=self.tileset.to_epsg4978_transformer, inplace=True)
-            return pc
+        if self.tile_identifier.object_id != -1:
+            content = self.tileset.bboxstorage.get_object_for_identifier(tile_identifier=self.tile_identifier.tile_indices,
+                                                                         object_identifier=self.tile_identifier.object_id)
+            if content is not None:
+                content.to_crs(crs_transformer=self.tileset.to_epsg4978_transformer, inplace=True)
+            return content
         else:
             return None
 

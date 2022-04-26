@@ -75,7 +75,7 @@ class GeoPointCloudTileset3d(Tileset3d):
             return str("{}_{}_{}_{}.json".format(level, indices[0], indices[1], indices[2]))
         def content_uri_generator(tile: GeoPointCloudTile3d) -> str:
             tile_uri = uri_generator(tile)
-            return tile_uri + '_content' + TILES3D_CONTENT_TYPE_TO_FILE_ENDING[tile.content_type.name]
+            return tile_uri + '_content' + TILES3D_CONTENT_TYPE_TO_FILE_ENDING[tile.content_type.value]
         def content_to_file(tile: GeoPointCloudTile3d):
             if tile.content is not None:
                 serialized_bytes = tile.content.to_bytes_tiles3d()

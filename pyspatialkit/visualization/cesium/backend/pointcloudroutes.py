@@ -19,14 +19,14 @@ from ....spacedescriptors.georect import GeoRect
 from ....storage.geostorage import GeoStorage
 from ....dataobjects.tiles3d.pointcloud.geopointcloudtile3d import GeoPointCloudTileIdentifier
 from ....dataobjects.tiles3d.pointcloud.geopointcloudtile3d import GeoPointCloudTile3d
-from ....dataobjects.tiles3d.tiles3dcontentobject import TILES3D_CONTENT_TYPE_TO_FILE_ENDING
+from ....dataobjects.tiles3d.tiles3dcontentobject import Tiles3dContentType, TILES3D_CONTENT_TYPE_TO_FILE_ENDING
 from ....dataobjects.tiles3d.tile3d import Tile3d
 from ....dataobjects.tiles3d.tileset3d import Tileset3d
 from ....storage.pointcloud.geopointcloudlayer import GeoPointCloudLayer
 
 
 FILE_PATTERN = re.compile(r'(\d+)_(\d+)_(\d+)_(\d+)\..+')
-CONTENT_ENDING = TILES3D_CONTENT_TYPE_TO_FILE_ENDING['POINT_CLOUD']
+CONTENT_ENDING = TILES3D_CONTENT_TYPE_TO_FILE_ENDING[Tiles3dContentType.POINT_CLOUD.value]
 
 router = APIRouter(
     prefix='/backend',

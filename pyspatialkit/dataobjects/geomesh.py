@@ -17,6 +17,8 @@ from ..crs.geocrs import GeoCrs, NoneCRS
 from ..crs.geocrstransformer import GeoCrsTransformer
 from ..globals import get_default_crs
 from ..storage.bboxstorage.bboxstorage import BBoxStorageObjectInterface
+from .geodataobjectinterface import GeoDataObjectInterface
+from .tiles3d.tiles3dcontentobject import Tiles3dContentObject, Tiles3dContentType
 
 T = TypeVar('T', bound='TrivialClass')
 
@@ -27,7 +29,7 @@ class Geo3dMeshData:
         self.crs_dict = None
 
 
-class GeoMesh(BBoxStorageObjectInterface):
+class GeoMesh(BBoxStorageObjectInterface, GeoDataObjectInterface, Tiles, Tiles3dContentObject):
 
     # @classmethod
     # def from_kalmesh(cls: Type[T], kalmesh, crs:Optional[GeoCrs]=None) -> T:

@@ -15,12 +15,16 @@ from ..tiles3dcontentobject import TILES3D_CONTENT_TYPE_TO_FILE_ENDING
 
 from ....storage.bboxstorage.bboxstorage import BBoxStorage
 from ....utils.logging import dbg
+from ..tiles3dcontentobject import Tiles3dContentObject
 
 class BBoxStorageTileSet3d(Tileset3d):
 
     def __init__(self, bboxstorage: BBoxStorage, crs: GeoCrs, geometric_error_multiplier = 8, num_tiles_per_level_edge = 2):
         super().__init__()
+        if not issubclass(bboxstorage.object_type, Tiles3dContentObject):
+            raise TypeError("Can only create a tileset for BBoxStorage instances storing of type Tiles3dContentObject (transformable to 3dTiles!")
         self.bboxstorage = bboxstorage
+        self.content_type = self.bboxstorage.object_type.get_content_type_tile3d()
         self.crs = crs
         self.geometric_error_multiplier = geometric_error_multiplier
         self.num_tiles_per_level_edge = num_tiles_per_level_edge
@@ -54,14 +58,20 @@ class BBoxStorageTileSet3d(Tileset3d):
         return self.geometric_error_multiplier #* (self.max_level + 1)
 
     def get_root(self) -> BBoxStorageTile3d:
-        return self.get_tile_by_identifier(BBoxStorageTileIdentifier(self.max_level, (0,0,0)))
+        return self.get_tile_by_identifier(BBoxStorageTileIdentifier(self.max_level, (0,0,0), object_id = -1))
 
     def get_bbox_from_identifier(self,identifier: BBoxStorageTileIdentifier) -> GeoBox3d:
-        tile_size = self.get_tile_size_for_level(identifier.level)
-        min_pt = self.min + tile_size * np.array(identifier.tile_indices)
-        bbox = GeoBox3d(min_pt, min_pt+tile_size, crs=self.crs, to_epsg4978_transformer=self.to_epsg4978_transformer,
-                         to_epsg4979_transformer=self.to_epsg4979_transformer)
-        return bbox
+        if identifier.object_id == -1:
+            tile_size = self.get_tile_size_for_level(identifier.level)
+            min_pt = self.min + tile_size * np.array(identifier.tile_indices)
+            bbox = GeoBox3d(min_pt, min_pt+tile_size, crs=self.crs, to_epsg4978_transformer=self.to_epsg4978_transformer,
+                            to_epsg4979_transformer=self.to_epsg4979_transformer)
+            return bbox
+        else:
+            if self.bboxstorage.has_pyramid == False and identifier.level != 0:
+                raise ValueError("Storage has no pyramids so only layer 0 has object bounding boxes!")
+            bounds = self.bboxstorage.get_bounds_for_identifiert(tile_identifier=identifier.tile_indices, object_identifier=identifier.object_id)
+            return GeoBox3d.from_bounds(bounds)
 
     def get_tile_by_identifier(self,identifier: BBoxStorageTileIdentifier) -> BBoxStorageTile3d:
         ge = self.geometric_error_multiplier #* identifier.level
@@ -80,7 +90,7 @@ class BBoxStorageTileSet3d(Tileset3d):
             return str("{}_{}_{}_{}.json".format(level, indices[0], indices[1], indices[2]))
         def content_uri_generator(tile: BBoxStorageTile3d) -> str:
             tile_uri = uri_generator(tile)
-            return tile_uri + '_content' + TILES3D_CONTENT_TYPE_TO_FILE_ENDING[tile.content_type.name]
+            return tile_uri + '_content' + TILES3D_CONTENT_TYPE_TO_FILE_ENDING[tile.content_type.value]
         def content_to_file(tile: BBoxStorageTile3d):
             if tile.content is not None:
                 serialized_bytes = tile.content.to_bytes_tiles3d()
