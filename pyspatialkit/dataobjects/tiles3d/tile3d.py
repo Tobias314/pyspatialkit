@@ -27,6 +27,7 @@ class Tile3d(ABC):
         self._refine: Optional[RefinementType] = None
         self._content: Optional[Tiles3dContentObject] = None
         self._is_content_initialized = False
+        self._content_bytes = None
         self._content_type: Optional[Tiles3dContentType] = None
         self._content_bounding_volume: Optional[Tiles3dBoundingVolume] = None
         self._children: Optional[List[Tile3d]] = None
@@ -63,6 +64,9 @@ class Tile3d(ABC):
     def get_identifier(self) -> object:
         raise NotImplementedError
 
+    def content_to_bytes(self, content: Tiles3dContentObject) -> bytes:
+        return content.to_bytes_tiles3d()
+
     def get_cost(self) -> float:
         return 1
 
@@ -90,13 +94,22 @@ class Tile3d(ABC):
         return self._refine
 
     @property
-    def content(self) -> Tiles3dContentObject:
+    def content(self) -> Optional[Tiles3dContentObject]:
         if self._is_content_initialized is False:
             self._content = self.get_content()
             self._is_content_initialized = True
         if self._content is not None and self.content_type != self._content.get_content_type_tile3d():
             raise TypeError("The type of the content object does not match the content type set for this tile!")
         return self._content
+
+    @property
+    def content_bytes(self) -> bytes:
+        if self._content_bytes is None:
+            content = self.content
+            if content is None:
+                self._content_bytes = bytes()
+            else:
+                self._content_bytes = self.content_to_bytes(content)
 
     @property
     def content_type(self) -> Tiles3dContentType:

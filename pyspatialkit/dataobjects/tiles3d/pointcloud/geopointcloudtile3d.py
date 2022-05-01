@@ -16,6 +16,9 @@ class GeoPointCloudTileIdentifier(NamedTuple):
     level: int
     tile_indices: Tuple[int, int ,int]
 
+    def __str__(self):
+        str("{}_{}_{}_{}.json".format(self.level, self.tile_indices[0], self.tile_indices[1], self.tile_indices[2]))
+
 class GeoPointCloudTile3d(Tile3d):
     def __init__(self, tileset: 'geopointcloudtileset3d.GeoPointCloudTileset3d',
                   identifier: GeoPointCloudTileIdentifier, geometric_error=0):
@@ -37,17 +40,12 @@ class GeoPointCloudTile3d(Tile3d):
     def get_content(self) -> Tiles3dContentObject:
         if self.level == 0:
             pc = self.tileset.point_cloud.get_data(self.bbox)
-            if pc.shape[0] == 0:
-                return None
-            z = pc.z.to_numpy()
-            brightness = 50 + (np.abs(z) % 20) * 100
-            brightness = brightness.astype(np.uint8)
-            rgb = np.repeat(z[:,np.newaxis], repeats=3, axis=1)
-            pc.rgb = rgb
-            pc.to_crs(crs_transformer=self.tileset.to_epsg4978_transformer, inplace=True)
             return pc
         else:
             return None
+    
+    def content_to_bytes(self, content: Tiles3dContentObject) -> bytes:
+        return content.to_bytes_tiles3d(transformer=self.tileset.to_epsg4978_transformer)
 
     def get_content_type(self) -> Tiles3dContentType:
         return Tiles3dContentType.POINT_CLOUD

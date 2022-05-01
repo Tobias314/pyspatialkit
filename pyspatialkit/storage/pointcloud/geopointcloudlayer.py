@@ -145,7 +145,7 @@ class GeoPointCloudLayer(GeoLayer, GeoPointCloudReadable, GeoPointCloudWritable)
         self.backend.invalidate_cache()
 
     @property
-    def visualizer_tileset(self):
+    def visualizer_tileset(self) -> GeoPointCloudTileset3d:
         if self._visualizer_tileset is None:
             ts = self.backend_space_tile_size*4
             self._visualizer_tileset = GeoPointCloudTileset3d(self, tile_size=ts,

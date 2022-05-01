@@ -24,7 +24,7 @@ class Tiles3dContentObject(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def to_bytes_tiles3d(self)->bytes:
+    def to_bytes_tiles3d(self, transformer: Optional[GeoCrsTransformer] = None)->bytes:
         raise NotImplementedError
 
     @property
@@ -32,6 +32,7 @@ class Tiles3dContentObject(ABC):
     def bounding_volume_tiles3d(self)->Tiles3dBoundingVolume:
         raise NotImplementedError
 
+    #TODO: think whether we can delete this because we now allow for crs transformation in to_bytes_tiles3d
     @abstractmethod
     def to_crs(self, new_crs: GeoCrs, transformer: Optional[GeoCrsTransformer] = None):
         raise NotImplementedError()

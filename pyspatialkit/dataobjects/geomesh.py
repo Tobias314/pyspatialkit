@@ -1,6 +1,7 @@
 from typing import Type, TypeVar, Tuple, Sequence, Optional
 from pathlib import Path
 from io import BytesIO
+import json
 
 #import kaolin as kal
 #import torch
@@ -15,12 +16,16 @@ from trimesh.collision import mesh_to_BVH
 
 from ..crs.geocrs import GeoCrs, NoneCRS
 from ..crs.geocrstransformer import GeoCrsTransformer
-from ..globals import get_default_crs
+from ..globals import get_default_crs, TILE3D_CRS
 from ..storage.bboxstorage.bboxstorage import BBoxStorageObjectInterface
 from .geodataobjectinterface import GeoDataObjectInterface
 from .tiles3d.tiles3dcontentobject import Tiles3dContentObject, Tiles3dContentType
+from ..spacedescriptors.geobox3d import GeoBox3d
 
 T = TypeVar('T', bound='TrivialClass')
+
+B3DM_VERSION = 1
+B3DM_VERSION_HEADER_FIELD = B3DM_VERSION.to_bytes(4, 'little')
 
 class Geo3dMeshData:
     def __init__(self):
@@ -29,7 +34,7 @@ class Geo3dMeshData:
         self.crs_dict = None
 
 
-class GeoMesh(BBoxStorageObjectInterface, GeoDataObjectInterface, Tiles, Tiles3dContentObject):
+class GeoMesh(BBoxStorageObjectInterface, GeoDataObjectInterface, Tiles3dContentObject):
 
     # @classmethod
     # def from_kalmesh(cls: Type[T], kalmesh, crs:Optional[GeoCrs]=None) -> T:
@@ -162,7 +167,7 @@ class GeoMesh(BBoxStorageObjectInterface, GeoDataObjectInterface, Tiles, Tiles3d
         return o3d_mesh
         #return self.tmesh.as_open3d
 
-    def to_crs(self, new_crs: GeoCrs, crs_transformer: Optional[GeoCrsTransformer] = None, inplace:bool=False):
+    def to_crs(self, new_crs: Optional[GeoCrs] = None, crs_transformer: Optional[GeoCrsTransformer] = None, inplace:bool=False):
         if new_crs is None:
             if crs_transformer is None:
                 raise AttributeError("You need to either specify a new_crs or a crs_transformer!")
@@ -189,6 +194,7 @@ class GeoMesh(BBoxStorageObjectInterface, GeoDataObjectInterface, Tiles, Tiles3d
         return ret > 0
 
     def plot_o3d(self, *args, **kwargs):
+        import open3d as o3d
         mesh = self.to_o3d()
         mesh.compute_triangle_normals()
         o3d.visualization.draw_geometries([mesh], *args, **kwargs)
@@ -241,3 +247,44 @@ class GeoMesh(BBoxStorageObjectInterface, GeoDataObjectInterface, Tiles, Tiles3d
     def get_box_mesh(cls: Type[T]) -> T:
         o3dmesh = o3d.geometry.TriangleMesh.create_box()
         return cls.from_o3d_mesh(o3dmesh)
+
+    @classmethod
+    def get_content_type_tile3d(self) -> Tiles3dContentType:
+        return Tiles3dContentType.MESH
+
+    def to_bytes_tiles3d(self, crs_transformer: Optional[GeoCrsTransformer] = None) -> bytes:
+        if TILE3D_CRS == self.crs:
+            crs_transformer = None
+        else:
+            if crs_transformer is None:
+                crs_transformer = GeoCrsTransformer(self.crs, TILE3D_CRS)
+            else:
+                if crs_transformer.to_crs != TILE3D_CRS:
+                    raise ValueError('Transformer must transform to:' + str(TILE3D_CRS))
+        original_vertices = self.tmesh.vertices.copy()
+        if crs_transformer is not None:
+            x,y,z = np.split(self.tmesh.vertices, 3, axis=1)
+            self.tmesh.vertices = np.stack(crs_transformer.transform(x.flatten(), y.flatten(), z.flatten()), axis=1)
+        magic = b'b3dm'
+        version = B3DM_VERSION_HEADER_FIELD
+        batch_table_json_byte_length = (0).to_bytes(4, 'little')
+        batch_table_binary_byte_length = (0).to_bytes(4, 'little')
+        feature_table_json = {
+            'BATCH_LENGTH': 0
+        }
+        feature_table_json = json.dumps(feature_table_json)
+        feature_table_json_padding = (8 - (28 + len(feature_table_json)) % 8) % 8
+        feature_table_json = bytes(feature_table_json + ' ' * feature_table_json_padding, 'utf-8') 
+        feature_table = b''
+        binary_gltf = self.tmesh.export(file_type='glb')
+        byte_length = (28 + len(feature_table_json) + len(feature_table) + len(binary_gltf)).to_bytes(4, 'little')
+        feature_table_json_byte_length = np.array([len(feature_table_json)], dtype='<u4').tobytes()
+        feature_table_binary_byte_length = np.array([len(feature_table)], dtype='<u4').tobytes()
+        res = magic + version + byte_length + feature_table_json_byte_length + feature_table_binary_byte_length + \
+               batch_table_json_byte_length + batch_table_binary_byte_length + feature_table_json + feature_table + binary_gltf
+        self.tmesh.vertices = original_vertices
+        return res
+
+    @property
+    def bounding_volume_tiles3d(self) -> GeoBox3d:
+        return GeoBox3d.from_bounds(self.bounds)

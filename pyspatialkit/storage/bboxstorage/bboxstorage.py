@@ -59,6 +59,7 @@ class BBoxStorageTileIndex:
         self.max_item = np.array([max_item], dtype=np.uint32)
         self.dims = len(identifier)
         self._file_lock = None
+        self._directory_path = None
 
     def persist_to_file(self):
         path = self.directory_path / INDEX_FILE_NAME
@@ -141,6 +142,9 @@ class BBoxStorageTileIndex:
         self.persist_to_file()
         self.unflushed_changes = False
 
+    def get_valid_object_ids(self) -> List[int]:
+        return list(self.id_to_bounds.keys())
+
     @property
     def directory_path(self):
         if self._directory_path is None:
@@ -218,7 +222,7 @@ class BBoxStorage:
                            tile_cache_size=config['tile_cache_size'], object_type=object_type, tile_bboxes = tile_bboxes)
         res.persist_to_file(bbox_tiles_only=True)
 
-    def get_tile(self, identifier: Tuple):
+    def _get_tile(self, identifier: Tuple):
         with self.tile_cache_lock:
             if identifier in self.tile_cache:
                 return self.tile_cache[identifier]
@@ -227,33 +231,38 @@ class BBoxStorage:
                 self.tile_cache[identifier] = tile
                 return tile
 
-    def _get_object_path(self, tile_identifier: Tuple, object_identifier: int) -> Path:
-        return self.get_tile_directory(tile_identifier) / 'data' / (str(object_identifier) + '.geoobj')
+    def _get_object_path(self, tile_indices: Tuple, object_identifier: int) -> Path:
+        return self.get_tile_directory(tile_indices) / 'data' / (str(object_identifier) + '.geoobj')
 
-    def write_object_to_file(self, obj: BBoxStorageObjectInterface, tile_identifier: Tuple, object_identifier: int):
-        tile_identifier = tuple(tile_identifier)
+    def write_object_to_file(self, obj: BBoxStorageObjectInterface, tile_indices: Tuple, object_identifier: int):
+        tile_indices = tuple(tile_indices)
         object_identifier = int(object_identifier)
         with self.object_cache_lock:
-            identifier = (tile_identifier, object_identifier)
+            identifier = (tile_indices, object_identifier)
             b = obj.to_bytes()
-            with open(self._get_object_path(tile_identifier, object_identifier), 'wb') as f:
+            with open(self._get_object_path(tile_indices, object_identifier), 'wb') as f:
                 f.write(b)
             self.object_cache[identifier] = obj
-    
-    def get_bounds_for_identifiert(self, tile_identifier: Tuple, object_identifier: int) -> npt.NDArray[float]:
-        tile = self.get_tile(tile_identifier)
-        with self.rw_lock.r_locked():
-            tile.get_bounds_for_index(object_identifier)
 
-    def get_object_for_identifier(self, tile_identifier: Tuple, object_identifier: int) -> Optional[BBoxStorageObjectInterface]:
-        tile_identifier = tuple(tile_identifier)
+    def get_object_ids_for_tile(self, tile_indices: Tuple) -> List[int]:
+        tile = self._get_tile(tile_indices)
+        with self.rw_lock.r_locked():
+            return tile.get_valid_object_ids()
+    
+    def get_bounds_for_identifiert(self, tile_indices: Tuple, object_identifier: int) -> npt.NDArray[float]:
+        tile = self._get_tile(tile_indices)
+        with self.rw_lock.r_locked():
+            return tile.get_bounds_for_index(object_identifier)
+
+    def get_object_for_identifier(self, tile_indices: Tuple, object_identifier: int) -> Optional[BBoxStorageObjectInterface]:
+        tile_indices = tuple(tile_indices)
         object_identifier = int(object_identifier)
         with self.object_cache_lock:
-            identifier = (tile_identifier, object_identifier)
+            identifier = (tile_indices, object_identifier)
             if identifier in self.object_cache:
                 return self.object_cache[identifier]
             else:
-                with open(self._get_object_path(tile_identifier, object_identifier), 'rb') as f:
+                with open(self._get_object_path(tile_indices, object_identifier), 'rb') as f:
                     res = self.object_type.from_bytes(f.read())
                 self.object_cache[identifier] = res
                 return res
@@ -273,16 +282,16 @@ class BBoxStorage:
         tiles = np.stack([a.flatten() for a in np.meshgrid(*ranges, indexing='ij')], axis=1)
         return tiles
 
-    def get_tiles_for_bbox(self, requ_min: np.ndarray, requ_max: np.ndarray) -> List[BBoxStorageTileIndex]:
+    def _get_tiles_for_bbox(self, requ_min: np.ndarray, requ_max: np.ndarray) -> List[BBoxStorageTileIndex]:
         tiles = self.get_tile_identifiers_for_bbox(requ_min, requ_max)
         res = []
         for tile_index in tiles:
-            res.append(self.get_tile(tuple(tile_index)))
+            res.append(self._get_tile(tuple(tile_index)))
         return res
 
     def get_objects_for_bbox(self, requ_min: np.ndarray, requ_max: np.ndarray) -> List[BBoxStorageObjectInterface]:
         with self.rw_lock.r_locked():
-            tiles = self.get_tiles_for_bbox(requ_min, requ_max)
+            tiles = self._get_tiles_for_bbox(requ_min, requ_max)
             candidates  = []
             for tile in tiles:
                 candidates.append(tile.filter_boxes_by_bbox(requ_min, requ_max))
@@ -307,7 +316,7 @@ class BBoxStorage:
             for i, (bbox_min, bbox_max, center, obj) in enumerate(zip(bbox_mins, bbox_maxs, centers, objects)):
                 obj_tiles = self.get_tile_identifiers_for_bbox(bbox_min, bbox_max)
                 identifier = tuple(center)
-                tile = self.get_tile(identifier)
+                tile = self._get_tile(identifier)
                 if identifier not in self.tile_bboxes:
                     self.tile_bboxes[identifier] = (bbox_min, bbox_max)
                     new_tile_bboxes[identifier] = (bbox_min, bbox_max)
@@ -325,7 +334,7 @@ class BBoxStorage:
                 for tile_id in obj_tiles:
                     tile_id = tuple(tile_id)
                     if tile_id!=identifier:
-                        tile = self.get_tile(tile_id)
+                        tile = self._get_tile(tile_id)
                         tile.write_foreign_object(object_bounds, obj, identifier, obj_id, flush=False)
                         written_tiles.add(tile)
             for tile in written_tiles:

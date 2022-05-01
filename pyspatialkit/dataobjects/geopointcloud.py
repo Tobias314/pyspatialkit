@@ -15,6 +15,7 @@ from matplotlib import cm
 
 from . import geomesh
 from ..processing.pointcloud.projection import points3d_to_image, project_to_image
+from ..processing.pointcloud.normals import compute_normals_from_xyz
 from ..crs.geocrs import GeoCrs, NoneCRS
 from ..crs.geocrstransformer import GeoCrsTransformer
 from ..crs.geocrs import NoneCRS
@@ -571,10 +572,8 @@ class GeoPointCloud(Tiles3dContentObject, GeoPointCloudReadable, GeoPointCloudWr
         transform = self.principle_components[1]
         self.xyz = transform @ (self.xyz - self.xyz.mean(axis=1, keepdims=True))
 
-    def estimate_normals(self, knn_k=100, fast_normal_computation=True):
-        o3d_pc = self.to_o3d()
-        o3d_pc.estimate_normals(o3d.geometry.KDTreeSearchParamKNN(knn_k), fast_normal_computation)
-        normals = np.array(o3d_pc.normals)
+    def estimate_normals(self, knn_k: int = 100, fast_normal_computation: bool = True):
+        normals = compute_normals_from_xyz(xyz_array=self.xyz.to_numpy(), knn_k=knn+k, fast_normal_computation=fast_normal_computation)
         self.data.loc[:, ['n_x', 'n_y', 'n_z']] = normals
         self._has_normals = True
 
@@ -669,7 +668,7 @@ class GeoPointCloud(Tiles3dContentObject, GeoPointCloudReadable, GeoPointCloudWr
     def bounding_volume_tiles3d(self) -> Tiles3dBoundingVolume:
         return GeoBox3d.from_bounds(self.bounds, crs=self.crs)
 
-    def to_bytes_tiles3d(self, rgb:bool = True, normals: bool = False) -> bytes:
+    def to_bytes_tiles3d(self, crs_transformer: Optional[GeoCrsTransformer] = None, rgb:bool = True, normals: bool = False) -> bytes:
         #rgb = rgb and self.has_rgb
         normals = normals and self.has_normals
-        return geopointcloud_to_3dtiles_pnts(self, rgb=rgb, normals=normals)
+        return geopointcloud_to_3dtiles_pnts(self, crs_transformer=crs_transformer, rgb=rgb, normals=normals)

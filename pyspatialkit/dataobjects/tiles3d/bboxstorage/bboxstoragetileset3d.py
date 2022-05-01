@@ -28,6 +28,9 @@ class BBoxStorageTileSet3d(Tileset3d):
         self.crs = crs
         self.geometric_error_multiplier = geometric_error_multiplier
         self.num_tiles_per_level_edge = num_tiles_per_level_edge
+        if isinstance(self.num_tiles_per_level_edge, int) or isinstance(self.num_tiles_per_level_edge, float):
+            self.num_tiles_per_level_edge = [self.num_tiles_per_level_edge] * 3
+        self.num_tiles_per_level_edge = np.array(self.num_tiles_per_level_edge)
         self.to_epsg4978_transformer = GeoCrsTransformer(self.crs, GeoCrs.from_epsg(4978))
         if not self.crs.is_geocentric:
             self.to_epsg4979_transformer = GeoCrsTransformer(self.crs, GeoCrs.from_epsg(4979))
@@ -57,6 +60,10 @@ class BBoxStorageTileSet3d(Tileset3d):
     def geometric_error(self) -> float:
         return self.geometric_error_multiplier #* (self.max_level + 1)
 
+    @property
+    def has_pyramid(self) -> bool:
+        return self.bboxstorage.has_pyramid
+
     def get_root(self) -> BBoxStorageTile3d:
         return self.get_tile_by_identifier(BBoxStorageTileIdentifier(self.max_level, (0,0,0), object_id = -1))
 
@@ -70,7 +77,7 @@ class BBoxStorageTileSet3d(Tileset3d):
         else:
             if self.bboxstorage.has_pyramid == False and identifier.level != 0:
                 raise ValueError("Storage has no pyramids so only layer 0 has object bounding boxes!")
-            bounds = self.bboxstorage.get_bounds_for_identifiert(tile_identifier=identifier.tile_indices, object_identifier=identifier.object_id)
+            bounds = self.bboxstorage.get_bounds_for_identifiert(tile_indices=identifier.tile_indices, object_identifier=identifier.object_id)
             return GeoBox3d.from_bounds(bounds)
 
     def get_tile_by_identifier(self,identifier: BBoxStorageTileIdentifier) -> BBoxStorageTile3d:
@@ -78,32 +85,3 @@ class BBoxStorageTileSet3d(Tileset3d):
         res = BBoxStorageTile3d(self, identifier=identifier, geometric_error=ge)
         dbg('got tile')
         return res
-    
-    def to_static_directory(self, directory_path: Union[str, Path], max_per_file_depth:Optional[int]=None,
-                             max_per_file_cost:Optional[int]=None):
-        directory_path = Path(directory_path)
-        if not directory_path.is_dir():
-            directory_path.mkdir(parents=True)
-        def uri_generator(tile: BBoxStorageTile3d) -> str:
-            level = tile.identifier.level
-            indices = tile.identifier.tile_indices
-            return str("{}_{}_{}_{}.json".format(level, indices[0], indices[1], indices[2]))
-        def content_uri_generator(tile: BBoxStorageTile3d) -> str:
-            tile_uri = uri_generator(tile)
-            return tile_uri + '_content' + TILES3D_CONTENT_TYPE_TO_FILE_ENDING[tile.content_type.value]
-        def content_to_file(tile: BBoxStorageTile3d):
-            if tile.content is not None:
-                serialized_bytes = tile.content.to_bytes_tiles3d()
-                file_path = content_uri_generator(tile)
-                with open(directory_path / file_path, "wb") as f:
-                    f.write(serialized_bytes)
-        backlog = []
-        backlog.append(self.root)
-        while backlog:
-            root_tile = backlog.pop()
-            json_dict, new_roots = self.materialize(tile_uri_generator=uri_generator, tile_content_uri_generator=content_uri_generator,
-                                                     root_tile=root_tile, max_depth=max_per_file_depth,
-                                                     max_cost=max_per_file_cost, callback=content_to_file)
-            with open(directory_path / uri_generator(root_tile), 'w') as f:
-                json.dump(json_dict, f)
-            backlog += new_roots

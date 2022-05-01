@@ -1,8 +1,10 @@
 from typing import Union, Dict, Optional, TYPE_CHECKING, Tuple, List, Callable
 from abc import ABC, abstractmethod
 from pathlib import Path
+import json
 
 from .tile3d import Tile3d
+from .tiles3dcontentobject import TILES3D_CONTENT_TYPE_TO_FILE_ENDING
 
 TILES3D_VERSION = '1.0'
 
@@ -37,6 +39,10 @@ class Tileset3d(ABC):
     def get_tile_by_identifier(self,identifier: object)-> Tile3d:
         raise NotImplementedError
 
+    @property
+    def geometric_error(self) -> float:
+        return 0
+
     #TODO fix cost/max_cost calculation
     def materialize(self, tile_uri_generator: Callable[['Tile3d'], str],
                      tile_content_uri_generator: Optional[Callable[['Tile3d'], str]] = None,
@@ -65,5 +71,31 @@ class Tileset3d(ABC):
         }
         return res
 
+    def to_static_directory(self, directory_path: Union[str, Path], max_per_file_depth:Optional[int]=None,
+                             max_per_file_cost:Optional[int]=None):
+        directory_path = Path(directory_path)
+        if not directory_path.is_dir():
+            directory_path.mkdir(parents=True)
+        def uri_generator(tile: Tile3d) -> str:
+            return str(tile.identifier)
+        def content_uri_generator(tile: Tile3d) -> str:
+            tile_uri = uri_generator(tile)
+            return tile_uri + '_content' + TILES3D_CONTENT_TYPE_TO_FILE_ENDING[tile.content_type.value]
+        def content_to_file(tile: Tile3d):
+            if tile.content is not None:
+                serialized_bytes = tile.content.to_bytes_tiles3d()
+                file_path = content_uri_generator(tile)
+                with open(directory_path / file_path, "wb") as f:
+                    f.write(serialized_bytes)
+        backlog = []
+        backlog.append(self.root)
+        while backlog:
+            root_tile = backlog.pop()
+            json_dict, new_roots = self.materialize(tile_uri_generator=uri_generator, tile_content_uri_generator=content_uri_generator,
+                                                     root_tile=root_tile, max_depth=max_per_file_depth,
+                                                     max_cost=max_per_file_cost, callback=content_to_file)
+            with open(directory_path / uri_generator(root_tile), 'w') as f:
+                json.dump(json_dict, f)
+            backlog += new_roots
 
 

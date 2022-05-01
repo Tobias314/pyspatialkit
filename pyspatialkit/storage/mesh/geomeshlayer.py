@@ -20,6 +20,7 @@ from ..bboxstorage.bboxstorage import BBoxStorage
 from ...dataobjects.geomesh import GeoMesh
 from ...spacedescriptors.geobox3d import GeoBox3d
 from ...spacedescriptors.geobox2d import GeoBox2d
+from ...dataobjects.tiles3d.bboxstorage.bboxstoragetileset3d import BBoxStorageTileSet3d
 
 BACKEND_DIRECTORY_NAME = "backend"
 DEFAULT_MIN_ELEVATION = -20000
@@ -47,6 +48,7 @@ class GeoMeshLayer(GeoLayer):
         self.object_cache_size = object_cache_size
         self.backend = BBoxStorage(self.directory_path / BACKEND_DIRECTORY_NAME, bounds=self.bounds, tile_size=self.tile_size,
                                    object_type=GeoMesh, tile_cache_size=self.tile_cache_size, object_cache_size=self.object_cache_size)
+        self._visualizer_tileset = None
 
     def persist_data(self, dir_path: Path):
         config = {}
@@ -69,6 +71,7 @@ class GeoMeshLayer(GeoLayer):
             self.object_cache_size = config['ojbect_cache_size']
             self.backend = BBoxStorage(dir_path / BACKEND_DIRECTORY_NAME, bounds=self.bounds, tile_size=self.tile_size,
                                        object_type=GeoMesh, tile_cache_size=self.tile_cache_size, object_cache_size=self.object_cache_size)
+            self._visualizer_tileset = None
 
     def get_data(self, geobox: Union[GeoBox3d, GeoBox2d]) -> List[GeoMesh]:
         bbox_min, bbox_max = geobox.min, geobox.max
@@ -109,6 +112,12 @@ class GeoMeshLayer(GeoLayer):
 
     def invalidate_cache(self):
         self.backend.invalidate_cache()
+
+    @property
+    def visualizer_tileset(self) -> BBoxStorageTileSet3d:
+        if self._visualizer_tileset is None:
+            self._visualizer_tileset = BBoxStorageTileSet3d(self.backend, crs=self.crs)
+        return self._visualizer_tileset
 
     @property
     def name(self):

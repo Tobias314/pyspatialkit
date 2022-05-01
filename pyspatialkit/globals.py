@@ -6,6 +6,7 @@ import loky
 
 from .crs.geocrs import GeoCrs
 
+TILE3D_CRS = GeoCrs.from_epsg(4978)
 
 DEFAULT_CRS = GeoCrs(crs= CRS.from_epsg(4326))
 
