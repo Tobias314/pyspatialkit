@@ -26,6 +26,7 @@ T = TypeVar('T', bound='TrivialClass')
 
 B3DM_VERSION = 1
 B3DM_VERSION_HEADER_FIELD = B3DM_VERSION.to_bytes(4, 'little')
+Z_UP_Y_UP_TRANSFORM = np.array([[ 1.,0.,0.,0.],[ 0.,0.,1.,0.],[0.,-1.,0.,0.],[ 0.,0.,0.,1.]])
 
 class Geo3dMeshData:
     def __init__(self):
@@ -253,6 +254,7 @@ class GeoMesh(BBoxStorageObjectInterface, GeoDataObjectInterface, Tiles3dContent
         return Tiles3dContentType.MESH
 
     def to_bytes_tiles3d(self, crs_transformer: Optional[GeoCrsTransformer] = None) -> bytes:
+        print(self.vertices)
         if TILE3D_CRS == self.crs:
             crs_transformer = None
         else:
@@ -265,18 +267,24 @@ class GeoMesh(BBoxStorageObjectInterface, GeoDataObjectInterface, Tiles3dContent
         if crs_transformer is not None:
             x,y,z = np.split(self.tmesh.vertices, 3, axis=1)
             self.tmesh.vertices = np.stack(crs_transformer.transform(x.flatten(), y.flatten(), z.flatten()), axis=1)
+            center = self.tmesh.vertices.mean(axis=0)
+            self.tmesh.vertices -= center
         magic = b'b3dm'
         version = B3DM_VERSION_HEADER_FIELD
         batch_table_json_byte_length = (0).to_bytes(4, 'little')
         batch_table_binary_byte_length = (0).to_bytes(4, 'little')
         feature_table_json = {
-            'BATCH_LENGTH': 0
+            'BATCH_LENGTH': 0,
+            'RTC_CENTER': list(center)
         }
         feature_table_json = json.dumps(feature_table_json)
         feature_table_json_padding = (8 - (28 + len(feature_table_json)) % 8) % 8
         feature_table_json = bytes(feature_table_json + ' ' * feature_table_json_padding, 'utf-8') 
         feature_table = b''
-        binary_gltf = self.tmesh.export(file_type='glb')
+        tscene = trimesh.scene.Scene()
+        tscene.add_geometry(self.tmesh, transform=Z_UP_Y_UP_TRANSFORM)
+        binary_gltf = tscene.export(file_type='glb')
+        #binary_gltf = self.tmesh.export(file_type='glb')
         byte_length = (28 + len(feature_table_json) + len(feature_table) + len(binary_gltf)).to_bytes(4, 'little')
         feature_table_json_byte_length = np.array([len(feature_table_json)], dtype='<u4').tobytes()
         feature_table_binary_byte_length = np.array([len(feature_table)], dtype='<u4').tobytes()
