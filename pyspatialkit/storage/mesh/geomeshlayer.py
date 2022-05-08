@@ -69,7 +69,7 @@ class GeoMeshLayer(GeoLayer):
             self.tile_size = config['tile_size']
             self.tile_cache_size = config['tile_cache_size']
             self.object_cache_size = config['ojbect_cache_size']
-            self.backend = BBoxStorage(dir_path / BACKEND_DIRECTORY_NAME, bounds=self.bounds, tile_size=self.tile_size,
+            self.backend = BBoxStorageLayer(dir_path / BACKEND_DIRECTORY_NAME, bounds=self.bounds, tile_size=self.tile_size,
                                        object_type=GeoMesh, tile_cache_size=self.tile_cache_size, object_cache_size=self.object_cache_size)
             self._visualizer_tileset = None
 

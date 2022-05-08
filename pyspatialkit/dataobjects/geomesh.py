@@ -17,7 +17,7 @@ from trimesh.collision import mesh_to_BVH
 from ..crs.geocrs import GeoCrs, NoneCRS
 from ..crs.geocrstransformer import GeoCrsTransformer
 from ..globals import get_default_crs, TILE3D_CRS
-from ..storage.bboxstorage.bboxstorage import BBoxStorageObjectInterface
+from ..storage.bboxstorage.bboxstoragelayer import BBoxStorageObjectInterface
 from .geodataobjectinterface import GeoDataObjectInterface
 from .tiles3d.tiles3dcontentobject import Tiles3dContentObject, Tiles3dContentType
 from ..spacedescriptors.geobox3d import GeoBox3d
