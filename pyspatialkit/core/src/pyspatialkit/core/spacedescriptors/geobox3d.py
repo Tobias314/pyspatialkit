@@ -4,7 +4,6 @@ from pathlib import Path
 import numpy as np
 from pyproj import CRS, transformer
 from shapely.geometry import Polygon
-import sentinelhub
 
 from ..crs.geocrs import GeoCrs, NoneCRS
 from ..crs.geocrstransformer import GeoCrsTransformer

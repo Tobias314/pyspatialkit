@@ -17,7 +17,7 @@ from trimesh.collision import mesh_to_BVH
 from ..crs.geocrs import GeoCrs, NoneCRS
 from ..crs.geocrstransformer import GeoCrsTransformer
 from ..globals import get_default_crs, TILE3D_CRS
-from ..storage.bboxstorage.bboxstoragelayer import BBoxStorageObjectInterface
+from ..interfaces.bboxserializable import BBoxSerializable
 from .geodataobjectinterface import GeoDataObjectInterface
 from .tiles3d.tiles3dcontentobject import Tiles3dContentObject, Tiles3dContentType
 from ..spacedescriptors.geobox3d import GeoBox3d
@@ -35,7 +35,7 @@ class Geo3dMeshData:
         self.crs_dict = None
 
 
-class GeoMesh(BBoxStorageObjectInterface, GeoDataObjectInterface, Tiles3dContentObject):
+class GeoMesh(BBoxSerializable, GeoDataObjectInterface, Tiles3dContentObject):
 
     # @classmethod
     # def from_kalmesh(cls: Type[T], kalmesh, crs:Optional[GeoCrs]=None) -> T:

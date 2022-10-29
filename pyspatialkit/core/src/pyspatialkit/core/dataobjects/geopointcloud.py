@@ -9,7 +9,6 @@ import open3d as o3d
 import numpy as np
 import pandas as pd
 import pylas
-import pdal
 from sklearn.decomposition import PCA
 from matplotlib import cm
 
@@ -145,6 +144,7 @@ class GeoPointCloud(Tiles3dContentObject, GeoPointCloudReadable, GeoPointCloudWr
 
     @classmethod
     def from_las_file(cls, file_path, crs:GeoCrs = NoneCRS()):
+        import pdal
         pipeline_description = [str(file_path)]
         pipeline = pdal.Pipeline(json.dumps(pipeline_description))
         count = pipeline.execute()
@@ -401,6 +401,7 @@ class GeoPointCloud(Tiles3dContentObject, GeoPointCloudReadable, GeoPointCloudWr
         las_data.write(str(file_path))
 
     def apply_pdal_pipeline(self, pipeline_json: str, return_raw_output=False):
+        import pdal
         pipeline = pdal.Pipeline(pipeline_json, [self.to_structured_array()])
         pipeline.validate()
         count = pipeline.execute()

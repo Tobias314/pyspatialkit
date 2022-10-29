@@ -3,10 +3,10 @@ from typing import Union, Optional, Dict
 from numpy.lib.arraysetops import isin
 from pyproj import CRS
 import rasterio as rio
-import sentinelhub
+#import sentinelhub
 
 class GeoCrs:
-    def __init__(self, crs: Optional[Union[CRS, 'GeoCrs', str, sentinelhub.CRS]] = None) -> None:
+    def __init__(self, crs: Optional[Union[CRS, 'GeoCrs', str]] = None) -> None:
         try:
             if isinstance(crs, CRS):
                 self._proj_crs = crs
@@ -14,8 +14,8 @@ class GeoCrs:
                 self._proj_crs = crs.proj_crs
             elif isinstance(crs, str) or isinstance(crs, rio.crs.CRS):
                 self._proj_crs = CRS(crs)
-            elif isinstance(crs, sentinelhub.CRS):
-                self._proj_crs = crs.pyproj_crs()
+            #elif isinstance(crs, sentinelhub.CRS):
+            #    self._proj_crs = crs.pyproj_crs()
             else:
                 self._proj_crs = None
         except:

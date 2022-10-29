@@ -2,7 +2,7 @@ from typing import Optional, Tuple, Union, List
 
 import numpy as np
 from shapely.geometry import Polygon
-import sentinelhub
+#import sentinelhub
 
 from ..utils.linalg import projective_transform_from_pts
 
@@ -44,9 +44,9 @@ class GeoRect:
     def from_min_max(cls, min_pt: Tuple[float, float], max_pt: Tuple[float, float], crs: GeoCrs)-> 'GeoRect':
         return GeoRect(min_pt, max_pt, crs=crs)
 
-    @classmethod
-    def from_sentinelhub_bbox(cls, sentinelhub_bbox: sentinelhub.BBox):
-        return GeoRect(sentinelhub_bbox.lower_left, sentinelhub_bbox.upper_right, crs=GeoCrs(sentinelhub_bbox.crs))
+    #@classmethod
+    #def from_sentinelhub_bbox(cls, sentinelhub_bbox: sentinelhub.BBox):
+    #    return GeoRect(sentinelhub_bbox.lower_left, sentinelhub_bbox.upper_right, crs=GeoCrs(sentinelhub_bbox.crs))
 
     def copy(self):
         return GeoRect(bottom_left=self.bottom_left, top_right=self.top_right, bottom_right=self.bottom_right,  top_left=self.top_left, crs=self.crs)
