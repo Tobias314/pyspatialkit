@@ -1,6 +1,7 @@
 #%%
 import unittest
 from typing import Optional
+from pathlib import Path
 
 import numpy as np
 
@@ -36,14 +37,23 @@ class TestPersistentRTree(unittest.TestCase):
     #     rtree = PersistentRTree(root_path=':memory:', dimensions=2)
 
     def test_range_query(self):
-        rtree = PersistentRTree(root_path=':memory:', object_type=SimpleBBoxData2d, dimensions=2)
-        obj1 = SimpleBBoxData2d(np.array([0,0,2,2]), 42)
-        obj2 = SimpleBBoxData2d(np.array([1,1,5,5]), 43)
-        obj3 = SimpleBBoxData2d(np.array([10,10,12,12]), 44)
-        rtree.insert([obj1, obj2, obj3])
-        res = rtree.query_bbox(bbox=np.array([1,1,4,4]))
-        res = {obj.data for obj in res}
-        self.assertEqual(res, {42, 43})
+        rtree = PersistentRTree(tree_path=':memory:', object_type=SimpleBBoxData2d, dimensions=2)
+        objects = []
+        for i in range(100):
+            objects.append(SimpleBBoxData2d(np.array([i,i,i+2,i+2]), i))
+        rtree.insert(objects)
+        res = rtree.get_node(1)
+
+    # def test_range_query(self):
+    #     rtree = PersistentRTree(tree_path=':memory:', object_type=SimpleBBoxData2d, dimensions=2)
+    #     obj1 = SimpleBBoxData2d(np.array([0,0,2,2]), 42)
+    #     obj2 = SimpleBBoxData2d(np.array([1,1,5,5]), 43)
+    #     obj3 = SimpleBBoxData2d(np.array([10,10,12,12]), 44)
+    #     rtree.insert([obj1, obj2, obj3])
+    #     #res = rtree.query_bbox(bbox=np.array([1,1,4,4]))
+    #     res = rtree[1:4, 1:4]
+    #     res = {obj.data for obj in res}
+    #     self.assertEqual(res, {42, 43})
 
 
 
