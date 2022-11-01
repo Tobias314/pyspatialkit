@@ -10,11 +10,11 @@ class BBoxSerializable(ABC):
         raise NotImplementedError()
 
     @abstractclassmethod
-    def from_bytes(cls, bytes) -> Optional['BBoxSerializable']:
+    def from_bytes(cls, data: bytes, bbox: Optional[np.ndarray]) -> Optional['BBoxSerializable']:
         raise NotImplementedError()
 
     @abstractmethod
-    def is_intersecting_bbox(self, bbox_min: np.ndarray, bbox_max: np.ndarray) -> bool:
+    def is_intersecting_bbox(self, bbox: np.ndarray) -> bool:
         raise NotImplementedError()
 
     @abstractmethod

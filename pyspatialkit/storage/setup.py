@@ -11,5 +11,5 @@ setup(
     license='TODO',#TODO
     description='TDODO',
     long_description="TODO",#TODO'
-    install_requires=['pyspatialkit_core', 'SQLAlchemy'],#TODO
+    install_requires=['pyspatialkit_core', 'SQLAlchemy' 'fs'],#TODO
 )
