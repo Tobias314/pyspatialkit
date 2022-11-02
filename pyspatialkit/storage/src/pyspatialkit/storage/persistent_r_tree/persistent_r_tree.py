@@ -14,14 +14,22 @@ OBJECT_ID_COLUMN_NAME = 'object_id'
 DATA_FILE_ENDING = '.data'
 
 class RTreeNode:
-    def __init__(self, tree: 'PersistentRTree', id: int, objects: List[BBoxSerializable] = []):
+    #TODO: invalidate nodes after tree inserts
+    def __init__(self, tree: 'PersistentRTree', node_id: int, bbox: np.ndarray, objects: List[BBoxSerializable] = [],
+                 child_node_ids: List[int] = [], child_node_bboxes: List[np.ndarray] = []):
         self.tree = tree
-        self.id = id
+        self.node_id = node_id
+        self.bbox = bbox
         #self.child_node_ids = child_node_ids
         self.objects = objects
+        self.child_node_ids = child_node_ids
+        self.child_node_bboxes = child_node_bboxes
 
     def get_child_nodes(self)->List['RTreeNode']:
-        return self.tree.get_child_nodes(parent_node_id=self.id)
+        res = []
+        for child_id in self.child_node_ids:
+            res.append(self.tree.get_node(node_id=child_id))
+        return res
 
 class PersistentRTree():
 
@@ -104,28 +112,47 @@ class PersistentRTree():
     def get_root_node(self):
         return self.get_node(node_id=self.get_root_node_id())
 
-    def get_node(self, node_id: int)->RTreeNode:
-        raise NotImplementedError()
+    # def get_node(self, node_id: int)->RTreeNode:
+    #     raise NotImplementedError()
         
     def get_node(self, node_id: int) -> RTreeNode:
+        #TODO make everything more performent, e.g. skip parent query by tracking node depth
         sql = f"SELECT data FROM {R_TREE_TABLE_NAME}_node WHERE nodeno={node_id}"
         with self.engine.connect() as con:
             res = [row.data for row in con.execute(sa.text(sql))]
             assert len(res)==1
             data = res[0]
             sql = f"SELECT nodeno FROM {R_TREE_TABLE_NAME}_parent WHERE parentnode = {int(node_id)}"
-            child_node_ids = [row.nodeno for row in con.execute(sa.text(sql))]
+            child_ids = [row.nodeno for row in con.execute(sa.text(sql))]
             num_entries = int.from_bytes(data[2:4], 'big')
             entry_size = 8 + 4 * self.dimensions * 2
             data = data[4 : 4 + entry_size * num_entries]
             buffer = np.frombuffer(data, dtype=np.uint8)
             buffer = buffer.reshape((num_entries, entry_size))
             dt_float32 = np.dtype(np.float32).newbyteorder('>')
-            bounds = np.frombuffer(buffer[:,8:].tobytes(), dtype=dt_float32).reshape((num_entries, self.dimensions * 2))
-            dt_int64 = np.dtype(np.int64).newbyteorder('>')
-            ids = np.frombuffer(buffer[:, :8].tobytes(), dtype=dt_int64)
-        #TODO
-        raise NotImplementedError()
+            child_bboxes = np.frombuffer(buffer[:,8:].tobytes(), dtype=dt_float32).reshape((num_entries, self.dimensions * 2))
+            bbox = np.concatenate([np.min(child_bboxes[:,:self.dimensions], axis=0),
+                                    np.max(child_bboxes[:,self.dimensions:], axis=0)], axis=0)
+            if len(child_ids):
+                assert len(child_ids) == num_entries
+                return RTreeNode(tree=self, node_id=node_id, bbox=bbox, objects=[], child_node_ids=child_ids,
+                                 child_node_bboxes=list(child_bboxes))
+                #dt_int64 = np.dtype(np.int64).newbyteorder('>')
+                #ids = np.frombuffer(buffer[:, :8].tobytes(), dtype=dt_int64)
+            else:
+                dt_int64 = np.dtype(np.int64).newbyteorder('>')
+                ids = np.frombuffer(buffer[:, :8].tobytes(), dtype=dt_int64)
+                sql = (f"SELECT id, {OBJECT_ID_COLUMN_NAME} as object_id, {','.join(self.axis_names)} FROM {R_TREE_TABLE_NAME} " +
+                       f"WHERE id IN ({','.join([str(i) for i in ids])})")
+                res = con.execute(sa.text(sql))
+                objects = []
+                for row in res:
+                    object_bbox = np.array([row[self.axis_names[2*i]] for i in range(self.dimensions)] +
+                                           [row[self.axis_names[2*i+1]] for i in range(self.dimensions)])
+                    with self.data_fs.open(row.object_id + DATA_FILE_ENDING, mode='rb') as f:
+                        objects.append(self.object_typ.from_bytes(data=f.read(), bbox=object_bbox))
+                assert num_entries == len(objects)
+                return RTreeNode(tree=self, node_id=node_id, bbox=bbox, objects=objects, child_node_ids=[], child_node_bboxes=[])
         
     def _initialize_r_tree(self):
         sql = f"CREATE VIRTUAL TABLE {R_TREE_TABLE_NAME} USING rtree(\n id"
