@@ -1,4 +1,4 @@
-from typing import Optional, List, Tuple, Type
+from typing import Optional, List, Tuple, Type, Union
 from pathlib import Path
 import uuid
 
@@ -33,9 +33,10 @@ class RTreeNode:
 
 class PersistentRTree():
 
-    def __init__(self, tree_path: str, object_type: Type[BBoxSerializable], dimensions: int = 3,
-                 data_path: Optional[str]=None, tree_name: str = 'tree.sqlite'):
+    def __init__(self, tree_path: Union[Path, str], object_type: Type[BBoxSerializable], dimensions: int = 3,
+                 data_path: Optional[Union[Path, str]]=None, tree_name: str = 'tree.sqlite'):
         self.object_typ = object_type
+        tree_path = str(tree_path)
         if tree_path == ':memory:':
             self.engine = sa.create_engine(f"sqlite+pysqlite:///:memory:", echo=True)
         else:
@@ -46,7 +47,7 @@ class PersistentRTree():
             else:
                 self.data_fs = open_fs(tree_path).makedir('data')
         else:
-            self.data_fs = open_fs(data_path)
+            self.data_fs = open_fs(str(data_path))
         self.dimensions = dimensions    
         self.axis_names = []
         for d in range(dimensions):
@@ -153,6 +154,9 @@ class PersistentRTree():
                         objects.append(self.object_typ.from_bytes(data=f.read(), bbox=object_bbox))
                 assert num_entries == len(objects)
                 return RTreeNode(tree=self, node_id=node_id, bbox=bbox, objects=objects, child_node_ids=[], child_node_bboxes=[])
+
+    def invalidate_cache(self):
+        pass
         
     def _initialize_r_tree(self):
         sql = f"CREATE VIRTUAL TABLE {R_TREE_TABLE_NAME} USING rtree(\n id"
