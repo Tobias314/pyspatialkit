@@ -22,10 +22,6 @@ class Tileset3d(ABC):
         return {}
 
     @property
-    def geometric_error(self) -> float:
-        return 0
-
-    @property
     def root(self) -> Tile3d:
         if self._root is None:
             self._root = self.get_root()

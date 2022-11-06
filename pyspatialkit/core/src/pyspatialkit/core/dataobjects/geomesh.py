@@ -245,9 +245,9 @@ class GeoMesh(BBoxSerializable, GeoDataObjectInterface, Tiles3dContentObject):
         pass
 
     @classmethod
-    def get_box_mesh(cls: Type[T]) -> T:
+    def get_box_mesh(cls: Type[T],  crs:Optional[GeoCrs]=None) -> T:
         o3dmesh = o3d.geometry.TriangleMesh.create_box()
-        return cls.from_o3d_mesh(o3dmesh)
+        return cls.from_o3d_mesh(o3dmesh, crs=crs)
 
     @classmethod
     def get_content_type_tile3d(self) -> Tiles3dContentType:

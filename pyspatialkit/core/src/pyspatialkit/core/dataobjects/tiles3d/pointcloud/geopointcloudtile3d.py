@@ -17,10 +17,10 @@ class GeoPointCloudTileIdentifier(NamedTuple):
     tile_indices: Tuple[int, int ,int]
 
     def __str__(self):
-        str("{}_{}_{}_{}.json".format(self.level, self.tile_indices[0], self.tile_indices[1], self.tile_indices[2]))
+        return str("{}_{}_{}_{}.json".format(self.level, self.tile_indices[0], self.tile_indices[1], self.tile_indices[2]))
 
 class GeoPointCloudTile3d(Tile3d):
-    def __init__(self, tileset: 'geopointcloudtileset3d.GeoPointCloudTileset3d',
+    def __init__(self, tileset: '.geopointcloudtileset3d.GeoPointCloudTileset3d',
                   identifier: GeoPointCloudTileIdentifier, geometric_error=0):
         self._reset_cached()
         self.tileset = tileset

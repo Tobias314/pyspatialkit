@@ -6,7 +6,6 @@ from collections.abc import Iterable
 import numpy as np
 
 from pyspatialkit.core.dataobjects.geomesh import GeoMesh
-from pyspatialkit.core.dataobjects.tiles3d.bboxstorage.bboxstoragetileset3d import BBoxStorageTileSet3d
 from pyspatialkit.core.spacedescriptors.geobox3d import GeoBox3d
 from pyspatialkit.core.spacedescriptors.geobox2d import GeoBox2d
 from pyspatialkit.core.globals import get_default_crs
@@ -15,21 +14,22 @@ from pyspatialkit.core.crs.geocrstransformer import GeoCrsTransformer
 from pyspatialkit.core.crs.utils import crs_bounds
 
 from ..geolayer import GeoLayer
-from ..backends.persistent_r_tree import PersistentRTree
+from ..backends.persistent_r_tree.persistent_r_tree import PersistentRTree
+from ..backends.persistent_r_tree.persistent_r_tree_tileset3d import PersistentRTreeTileset3d
 
 
 class GeoMeshLayer(GeoLayer):
     
-    def initialize(self, crs: Optional[GeoCrs] = None,  dimensions: int = 2):
+    def initialize(self, crs: Optional[GeoCrs] = None):
         if crs is None:
             crs = get_default_crs()
         self._crs = crs
-        self.dimensions = dimensions
+        self.dimensions = 3
         self.index_dir = self.directory_path / 'index'
         self.index_dir.mkdir(parents=True)
         self.object_dir = self.directory_path / 'objects'
         self.object_dir.mkdir(parents=True)
-        self.backend = PersistentRTree(tree_path=self.index_dir, object_type=GeoMesh, dimensions=self.dimension,
+        self.backend = PersistentRTree(tree_path=self.index_dir, object_type=GeoMesh, dimensions=self.dimensions,
                                        data_path=self.object_dir)
         self._visualizer_tileset = None
 
@@ -93,9 +93,9 @@ class GeoMeshLayer(GeoLayer):
         self.backend.invalidate_cache()
 
     @property
-    def visualizer_tileset(self) -> BBoxStorageTileSet3d:
+    def visualizer_tileset(self):
         if self._visualizer_tileset is None:
-            self._visualizer_tileset = BBoxStorageTileSet3d(self.backend, crs=self.crs)
+            self._visualizer_tileset = PersistentRTreeTileset3d(tree=self.backend, crs=self.crs)
         return self._visualizer_tileset
 
     @property

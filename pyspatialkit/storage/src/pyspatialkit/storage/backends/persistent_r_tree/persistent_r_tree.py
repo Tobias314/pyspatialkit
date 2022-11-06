@@ -13,19 +13,31 @@ R_TREE_TABLE_NAME = "r_tree"
 OBJECT_ID_COLUMN_NAME = 'object_id'
 DATA_FILE_ENDING = '.data'
 
-class RTreeNode:
+class PersistentRTreeNode:
     #TODO: invalidate nodes after tree inserts
-    def __init__(self, tree: 'PersistentRTree', node_id: int, bbox: np.ndarray, objects: List[BBoxSerializable] = [],
+    def __init__(self, tree: 'PersistentRTree', node_id: int, bbox: np.ndarray,
+                 object_ids: List[BBoxSerializable] = [], object_bboxes: List[np.ndarray] = [],
                  child_node_ids: List[int] = [], child_node_bboxes: List[np.ndarray] = []):
         self.tree = tree
         self.node_id = node_id
         self.bbox = bbox
         #self.child_node_ids = child_node_ids
-        self.objects = objects
+        self.object_ids = object_ids
+        self.object_bboxes = object_bboxes
         self.child_node_ids = child_node_ids
         self.child_node_bboxes = child_node_bboxes
 
-    def get_child_nodes(self)->List['RTreeNode']:
+    def get_objects(self)->List[BBoxSerializable]:
+        res = []
+        for i in range(len(self.object_ids)):
+            res.append(self.get_object_at(i))
+        return res
+
+    def get_object_at(self, index:int)->BBoxSerializable:
+        with self.tree.data_fs.open(self.object_ids[index] + DATA_FILE_ENDING, mode='rb') as f:
+            return self.tree.object_type.from_bytes(data=f.read(), bbox=self.object_bboxes[index])
+
+    def get_child_nodes(self)->List['PersistentRTreeNode']:
         res = []
         for child_id in self.child_node_ids:
             res.append(self.tree.get_node(node_id=child_id))
@@ -113,10 +125,10 @@ class PersistentRTree():
     def get_root_node(self):
         return self.get_node(node_id=self.get_root_node_id())
 
-    # def get_node(self, node_id: int)->RTreeNode:
+    # def get_node(self, node_id: int)->PersistentRTreeNode:
     #     raise NotImplementedError()
         
-    def get_node(self, node_id: int) -> RTreeNode:
+    def get_node(self, node_id: int) -> PersistentRTreeNode:
         #TODO make everything more performent, e.g. skip parent query by tracking node depth
         sql = f"SELECT data FROM {R_TREE_TABLE_NAME}_node WHERE nodeno={node_id}"
         with self.engine.connect() as con:
@@ -136,8 +148,8 @@ class PersistentRTree():
                                     np.max(child_bboxes[:,self.dimensions:], axis=0)], axis=0)
             if len(child_ids):
                 assert len(child_ids) == num_entries
-                return RTreeNode(tree=self, node_id=node_id, bbox=bbox, objects=[], child_node_ids=child_ids,
-                                 child_node_bboxes=list(child_bboxes))
+                return PersistentRTreeNode(tree=self, node_id=node_id, bbox=bbox, child_node_ids=child_ids,
+                                            child_node_bboxes=list(child_bboxes))
                 #dt_int64 = np.dtype(np.int64).newbyteorder('>')
                 #ids = np.frombuffer(buffer[:, :8].tobytes(), dtype=dt_int64)
             else:
@@ -146,14 +158,15 @@ class PersistentRTree():
                 sql = (f"SELECT id, {OBJECT_ID_COLUMN_NAME} as object_id, {','.join(self.axis_names)} FROM {R_TREE_TABLE_NAME} " +
                        f"WHERE id IN ({','.join([str(i) for i in ids])})")
                 res = con.execute(sa.text(sql))
-                objects = []
+                object_ids = []
+                object_bboxes = []
                 for row in res:
-                    object_bbox = np.array([row[self.axis_names[2*i]] for i in range(self.dimensions)] +
-                                           [row[self.axis_names[2*i+1]] for i in range(self.dimensions)])
-                    with self.data_fs.open(row.object_id + DATA_FILE_ENDING, mode='rb') as f:
-                        objects.append(self.object_typ.from_bytes(data=f.read(), bbox=object_bbox))
-                assert num_entries == len(objects)
-                return RTreeNode(tree=self, node_id=node_id, bbox=bbox, objects=objects, child_node_ids=[], child_node_bboxes=[])
+                    object_ids.append(row.object_id)
+                    object_bboxes.append(np.array([row[self.axis_names[2*i]] for i in range(self.dimensions)] +
+                                         [row[self.axis_names[2*i+1]] for i in range(self.dimensions)]))
+                assert num_entries == len(object_ids)
+                return PersistentRTreeNode(tree=self, node_id=node_id, bbox=bbox, object_ids=object_ids, object_bboxes=object_bboxes,
+                                           child_node_ids=[], child_node_bboxes=[])
 
     def invalidate_cache(self):
         pass

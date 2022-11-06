@@ -145,10 +145,10 @@ class Tile3d(ABC):
 
     #TODO fix cost/max_cost calculation
     def materialize(self, tile_uri_generator: Callable[['Tile3d'], str],
-                     current_depth: int, accumulated_cost: float,
-                     tile_content_uri_generator: Optional[Callable[['Tile3d'], str]] = None,
-                     max_depth: Optional[int] = None, max_cost: Optional[float] = None,
-                     callback: Optional[Callable[['Tile3d'], None]] = None) -> Tuple[Dict[str, Union[str, float, int, Dict, List, Tuple]], List['Tile3d']]:
+                    current_depth: int, accumulated_cost: float,
+                    tile_content_uri_generator: Optional[Callable[['Tile3d'], str]] = None,
+                    max_depth: Optional[int] = None, max_cost: Optional[float] = None,
+                    callback: Optional[Callable[['Tile3d'], None]] = None) -> Tuple[Dict[str, Union[str, float, int, Dict, List, Tuple]], List['Tile3d']]:
         tile_uri = tile_uri_generator(self)
         if tile_content_uri_generator is None:
             tile_content_uri = tile_uri + '_content' + TILES3D_CONTENT_TYPE_TO_FILE_ENDING[self.content_type.value]

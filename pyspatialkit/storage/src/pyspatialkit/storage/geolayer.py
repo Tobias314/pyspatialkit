@@ -3,8 +3,8 @@ from pathlib import Path
 from abc import ABC, abstractmethod
 import shutil
 
-from ..globals import DEFAULT_CRS
-from ..utils.logging import raise_warning
+from pyspatialkit.core.globals import DEFAULT_CRS
+from pyspatialkit.core.utils.logging import raise_warning
 
 
 class GeoLayerOwner(ABC):
