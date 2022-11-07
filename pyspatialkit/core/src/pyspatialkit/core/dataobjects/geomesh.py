@@ -99,10 +99,10 @@ class GeoMesh(BBoxSerializable, GeoDataObjectInterface, Tiles3dContentObject):
         # return cls.from_vertices_faces(vertices, faces, crs=others[0].crs, vertex_colors=vertex_colors)
     
     @classmethod
-    def from_bytes(cls, binary_rep: bytes)-> Optional['GeoMesh']:
-        crs_str_length = int.from_bytes(binary_rep[:4], 'big')
-        crs = GeoCrs(binary_rep[4:4+crs_str_length].decode('utf-8'))
-        binary_io = BytesIO(binary_rep[4+crs_str_length:])
+    def from_bytes(cls, data: bytes, bbox: Optional[np.ndarray])-> Optional['GeoMesh']:
+        crs_str_length = int.from_bytes(data[:4], 'big')
+        crs = GeoCrs(data[4:4+crs_str_length].decode('utf-8'))
+        binary_io = BytesIO(data[4+crs_str_length:])
         tmesh = trimesh.exchange.load.load(binary_io, file_type='glb')
         if len(tmesh.geometry) == 1:
             tmesh = next(iter(tmesh.geometry.values()))
@@ -254,7 +254,6 @@ class GeoMesh(BBoxSerializable, GeoDataObjectInterface, Tiles3dContentObject):
         return Tiles3dContentType.MESH
 
     def to_bytes_tiles3d(self, crs_transformer: Optional[GeoCrsTransformer] = None) -> bytes:
-        print(self.vertices)
         if TILE3D_CRS == self.crs:
             crs_transformer = None
         else:
@@ -266,9 +265,11 @@ class GeoMesh(BBoxSerializable, GeoDataObjectInterface, Tiles3dContentObject):
         original_vertices = self.tmesh.vertices.copy()
         if crs_transformer is not None:
             x,y,z = np.split(self.tmesh.vertices, 3, axis=1)
-            self.tmesh.vertices = np.stack(crs_transformer.transform(x.flatten(), y.flatten(), z.flatten()), axis=1)
+            tmp = np.stack(crs_transformer.transform(x.flatten(), y.flatten(), z.flatten()), axis=1)
+            self.tmesh.vertices = tmp.copy()
             center = self.tmesh.vertices.mean(axis=0)
             self.tmesh.vertices -= center
+        print(self.vertices)
         magic = b'b3dm'
         version = B3DM_VERSION_HEADER_FIELD
         batch_table_json_byte_length = (0).to_bytes(4, 'little')

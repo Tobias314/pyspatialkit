@@ -47,7 +47,7 @@ class PersistentRTree():
 
     def __init__(self, tree_path: Union[Path, str], object_type: Type[BBoxSerializable], dimensions: int = 3,
                  data_path: Optional[Union[Path, str]]=None, tree_name: str = 'tree.sqlite'):
-        self.object_typ = object_type
+        self.object_type = object_type
         tree_path = str(tree_path)
         if tree_path == ':memory:':
             self.engine = sa.create_engine(f"sqlite+pysqlite:///:memory:", echo=True)
@@ -98,7 +98,7 @@ class PersistentRTree():
         for i, object_id in enumerate(df[OBJECT_ID_COLUMN_NAME]):
             with self.data_fs.open(object_id + DATA_FILE_ENDING, mode='rb') as f:
                 data = f.read()
-            results.append(self.object_typ.from_bytes(data=data, bbox=bboxes[i]))
+            results.append(self.object_type.from_bytes(data=data, bbox=bboxes[i]))
         return results
 
     def query_point(self, point: List[float]) -> List[BBoxSerializable]: #TODO

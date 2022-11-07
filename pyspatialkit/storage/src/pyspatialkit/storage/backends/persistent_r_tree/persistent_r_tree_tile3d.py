@@ -33,10 +33,11 @@ class PersistentRTreeContentTile3d(Tile3d):
         return []
 
     def get_bounding_volume(self) -> GeoBox3d:
-        return self.tileset.bbox_to_geobox3d(self.tree_node.object_bboxes[self.object_index])
+        return GeoBox3d.from_bounds(self.tileset.project_bbox_to_3d(self.tree_node.object_bboxes[self.object_index]),
+                                     crs=self.tileset.crs)
 
     def get_geometric_error(self) -> float:
-        return self.tileset.bbox_to_geometric_error(self.tree_node.child_node_bboxes[self.object_index])
+        return self.tileset.bbox_to_geometric_error(self.tree_node.object_bboxes[self.object_index])
 
     def get_refine(self) -> RefinementType:
         return RefinementType.REPLACE        
@@ -67,6 +68,9 @@ class PersistentRTreeTile3d(Tile3d):
         res = []
         for child_node in self.tree_node.get_child_nodes():
             res.append(PersistentRTreeTile3d(tileset=self.tileset, tree_node=child_node))
+        for object_index in range(len(self.tree_node.object_ids)):
+            res.append(PersistentRTreeContentTile3d(tileset=self.tileset, tree_node=self.tree_node,
+                                                     object_index=object_index))
         return res
 
     def get_bounding_volume(self) -> GeoBox3d:
