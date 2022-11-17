@@ -2,6 +2,7 @@ from typing import TYPE_CHECKING, Callable, NamedTuple, Optional, Tuple, List, D
 from abc import ABC, abstractmethod
 
 import numpy as np
+from pydantic import BaseModel
 
 from ....dataobjects.tiles3d.tileset3d import Tileset3d
 from ..tile3d import RefinementType, Tile3d
@@ -12,7 +13,7 @@ from ..tiles3dcontentobject import Tiles3dContentObject, Tiles3dContentType, TIL
 if TYPE_CHECKING:
     from . import geopointcloudtileset3d
 
-class GeoPointCloudTileIdentifier(NamedTuple):
+class GeoPointCloudTileIdentifier(BaseModel):
     level: int
     tile_indices: Tuple[int, int ,int]
 

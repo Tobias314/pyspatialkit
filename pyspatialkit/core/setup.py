@@ -12,5 +12,5 @@ setup(
     description='TDODO',
     long_description="TODO",#TODO'
     install_requires=['pyproj', 'shapely', 'numpy', 'geopandas', 'trimesh', 'python-fcl', 'open3d',
-                      'rasterio', 'scipy', 'pygeos', 'scikit-image'],#TODO
+                      'rasterio', 'scipy', 'pygeos', 'scikit-image', 'pydantic'],#TODO
 )

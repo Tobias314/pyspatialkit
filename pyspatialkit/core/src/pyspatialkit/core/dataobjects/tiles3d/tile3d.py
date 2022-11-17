@@ -2,6 +2,8 @@ from typing import TYPE_CHECKING, Callable, NamedTuple, Optional, Tuple, List, D
 from abc import ABC, abstractmethod
 from enum import Enum
 
+from pydantic import BaseModel
+
 from ...spacedescriptors.tiles3dboundingvolume import Tiles3dBoundingVolume
 from ...dataobjects.tiles3d.tiles3dcontentobject import Tiles3dContentObject, Tiles3dContentType, TILES3D_CONTENT_TYPE_TO_FILE_ENDING
 from ...spacedescriptors.geobox3d import GeoBox3d
@@ -61,7 +63,7 @@ class Tile3d(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def get_identifier(self) -> object:
+    def get_identifier(self) -> BaseModel:
         raise NotImplementedError
 
     def content_to_bytes(self, content: Tiles3dContentObject) -> bytes:

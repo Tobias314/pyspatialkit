@@ -73,7 +73,7 @@ class Tileset3d(ABC):
         if not directory_path.is_dir():
             directory_path.mkdir(parents=True)
         def uri_generator(tile: Tile3d) -> str:
-            return str(tile.identifier)
+            return ('_'.join([str(v) for v in tile.dict().values()]))
         def content_uri_generator(tile: Tile3d) -> str:
             tile_uri = uri_generator(tile)
             return tile_uri + '_content' + TILES3D_CONTENT_TYPE_TO_FILE_ENDING[tile.content_type.value]

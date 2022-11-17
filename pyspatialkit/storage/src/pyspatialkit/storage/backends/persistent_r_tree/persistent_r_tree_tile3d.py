@@ -2,6 +2,7 @@ from typing import TYPE_CHECKING, Callable, NamedTuple, Optional, Tuple, List, D
 from abc import ABC, abstractmethod
 
 import numpy as np
+from pydantic import BaseModel
 
 from pyspatialkit.core.dataobjects.tiles3d.tileset3d import Tileset3d
 from pyspatialkit.core.dataobjects.tiles3d.tiles3dcontentobject import Tiles3dContentObject, Tiles3dContentType
@@ -15,7 +16,7 @@ from .persistent_r_tree import PersistentRTreeNode
 if TYPE_CHECKING:
     from . import geopointcloudtileset3d
 
-class PersistentRTreeTileIdentifier(NamedTuple):
+class PersistentRTreeTileIdentifier(BaseModel):
     node_id: int
     object_index: Optional[int] = None
 

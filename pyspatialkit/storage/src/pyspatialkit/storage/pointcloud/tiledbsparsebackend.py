@@ -11,10 +11,10 @@ from numpy.lib.shape_base import tile
 import tiledb
 import pandas as pd
 
-from ...utils.numpy import next_bigger_dtype
-from ...utils.bounds import bounds3d_half_surface_area, bounds3d_edge_lengths, bounds3d_volume
-from ...utils.logging import dbg, raise_warning
-from ...utils.tiledb import consolidate_and_vacuume
+from pyspatialkit.core.utils.numpy import next_bigger_dtype
+from pyspatialkit.core.utils.bounds import bounds3d_half_surface_area, bounds3d_edge_lengths, bounds3d_volume
+from pyspatialkit.core.utils.logging import dbg, raise_warning
+from ..utils.tiledb import consolidate_and_vacuume
 
 POINT_PYRAMID_REDUCTION_FACTOR = 5
 AXIS_NAMES = ['x', 'y', 'z']

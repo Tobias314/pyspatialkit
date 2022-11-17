@@ -1,8 +1,7 @@
-
 from setuptools import setup, find_namespace_packages
 
 setup(
-    name='pyspatialkit_storage',
+    name='pyspatialkit_server',
     version='0.0.1',
     author='Tobias Pietz',
     author_email='pito.mailing@gmail.com',
@@ -11,5 +10,6 @@ setup(
     license='TODO',#TODO
     description='TDODO',
     long_description="TODO",#TODO'
-    install_requires=['pyspatialkit_core', 'SQLAlchemy', 'fs', 'tiledb'],#TODO
+    install_requires=['pyspatialkit_core', 'pyspatialkit_core', 'fastapi', 'genshi', 'Genshi',
+                      'uvicorn[standard]','opencv-python'],#TODO think about uvicorn
 )

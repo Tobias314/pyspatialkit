@@ -1,7 +1,7 @@
 import argparse
 
-from pyspatialkit.visualization.cesium.backend.server import start_server
-from pyspatialkit.storage.geostorage import GeoStorage
+from pyspatialkit.server import start_server
+from pyspatialkit.storage import GeoStorage
 
 
 if __name__ == '__main__':

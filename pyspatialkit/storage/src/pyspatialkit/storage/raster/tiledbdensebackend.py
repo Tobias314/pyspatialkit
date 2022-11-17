@@ -9,8 +9,8 @@ import numpy as np
 import tiledb
 from tqdm.auto import tqdm
 
-from ...utils.numpy import next_bigger_dtype
-from ...utils.tiledb import consolidate_and_vacuume
+from pyspatialkit.core.utils.numpy import next_bigger_dtype
+from ..utils.tiledb import consolidate_and_vacuume
 
 class TileDbDenseBackend:
     """Backend for storing raster data in (several) TileDB databases.

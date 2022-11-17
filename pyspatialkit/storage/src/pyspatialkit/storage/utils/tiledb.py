@@ -1,7 +1,7 @@
 from typing import List
 
 import tiledb
-from .logging import dbg
+from pyspatialkit.core.utils.logging import dbg
 
 
 def consolidate_and_vacuume(uris: List[str]):

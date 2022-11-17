@@ -10,14 +10,12 @@ from skimage.transform import resize
 from matplotlib import pyplot as plt
 import cv2 as cv
 
-from ...globals import DEFAULT_CRS
-from ...tiling.geotiler2d import GeoTiler2d
+from pyspatialkit.core.globals import DEFAULT_CRS
+from pyspatialkit.core import GeoCrs, NoneCRS, GeoRect, GeoRaster
+from pyspatialkit.core.crs.utils import crs_bounds
+#from ...tiling.geotiler2d import GeoTiler2d #TODO
 from ..geolayer import GeoLayer
-from ...crs.geocrs import GeoCrs, NoneCRS
-from ...crs.utils import crs_bounds
 from .tiledbdensebackend import TileDbDenseBackend
-from ...spacedescriptors.georect import GeoRect
-from ...dataobjects.georaster import GeoRaster
 
 BACKEND_DIRECTORY_NAME = "backend"
 
@@ -129,7 +127,7 @@ class GeoRasterLayer(GeoLayer):
             self._eager_pyramid_update = True
         self.backend.consolidate_and_vacuum()
 
-    def apply(self, tiler: GeoTiler2d, transformer: Callable[[GeoRaster], Optional[GeoRaster]],
+    def apply(self, tiler: 'GeoTiler2d', transformer: Callable[[GeoRaster], Optional[GeoRaster]],
               output_layer: Optional['GeoRasterLayer'] = None,
               resolution_rc: Optional[Tuple[int,int]]=None, band=None, no_data_value=0):
         if output_layer is None:

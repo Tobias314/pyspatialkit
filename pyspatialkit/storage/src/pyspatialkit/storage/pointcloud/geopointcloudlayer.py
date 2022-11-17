@@ -12,22 +12,17 @@ from skimage.transform import resize
 from matplotlib import pyplot as plt
 
 
-from ...globals import DEFAULT_CRS
+from pyspatialkit.core.globals import DEFAULT_CRS
+from pyspatialkit.core import GeoCrs, NoneCRS, GeoRect, GeoRaster, GeoBox2d, GeoBox3d
+from pyspatialkit.core.dataobjects.geopointcloud import GeoPointCloud, GeoPointCloudReadable, GeoPointCloudWritable
+from pyspatialkit.core.crs.geocrstransformer import TransformDirection, GeoCrsTransformer
+from pyspatialkit.core.dataobjects.tiles3d.pointcloud.geopointcloudtileset3d import GeoPointCloudTileset3d
+from pyspatialkit.core.crs.utils import crs_bounds
+from pyspatialkit.core.utils.logging import dbg
 from ..geolayer import GeoLayer
-from ...crs.geocrs import GeoCrs, NoneCRS
-from ...crs.geocrstransformer import TransformDirection
-from ...crs.geocrstransformer import GeoCrsTransformer
-from ...crs.utils import crs_bounds
 from .tiledbsparsebackend import TileDbSparseBackend
-from ...spacedescriptors.georect import GeoRect
-from ...dataobjects.georaster import GeoRaster
-from ...utils.datascheme import datascheme_to_str_dict, datascheme_from_str_dict
-from ...spacedescriptors.geobox3d import GeoBox3d
-from ...spacedescriptors.geobox2d import GeoBox2d
-from ...dataobjects.geopointcloud import GeoPointCloud, GeoPointCloudReadable, GeoPointCloudWritable
-from ...tiling.geoboxtiler3d import GeoBoxTiler3d
-from ...utils.logging import dbg
-from ...dataobjects.tiles3d.pointcloud.geopointcloudtileset3d import GeoPointCloudTileset3d
+from ..utils.datascheme import datascheme_to_str_dict, datascheme_from_str_dict
+#from ..tiling.geoboxtiler3d import GeoBoxTiler3d
 
 
 BACKEND_DIRECTORY_NAME = "backend"
@@ -125,18 +120,19 @@ class GeoPointCloudLayer(GeoLayer, GeoPointCloudReadable, GeoPointCloudWritable)
             self._eager_pyramid_update = True
         self.backend.consolidate_and_vacuum()
 
-    def apply(self, tiler: GeoBoxTiler3d,
-              transformer: Callable[[GeoPointCloud], Optional[GeoPointCloud]],
-              attributes: Optional[List[str]] = None, output_layer: Optional['GeoPointCloudLayer'] = None):
-        if output_layer is None:
-            output_layer = self
-        output_layer.begin_pyramid_update_transaction()
-        for box3d, box_without_border in tiler:
-            pc = self.get_data(box3d,  attributes=attributes)
-            pc = transformer(pc, box_without_border)
-            if pc is not None:
-                output_layer.write_data(pc)
-        output_layer.commit_pyramid_update_transaction()
+    #TODO: move to own package
+    #  def apply(self, tiler: GeoBoxTiler3d,
+    #           transformer: Callable[[GeoPointCloud], Optional[GeoPointCloud]],
+    #           attributes: Optional[List[str]] = None, output_layer: Optional['GeoPointCloudLayer'] = None):
+    #     if output_layer is None:
+    #         output_layer = self
+    #     output_layer.begin_pyramid_update_transaction()
+    #     for box3d, box_without_border in tiler:
+    #         pc = self.get_data(box3d,  attributes=attributes)
+    #         pc = transformer(pc, box_without_border)
+    #         if pc is not None:
+    #             output_layer.write_data(pc)
+    #     output_layer.commit_pyramid_update_transaction()
 
     def _delete_permanently(self):
         self.backend.delete_permanently()
