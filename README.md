@@ -1,4 +1,5 @@
 # Pyspatialkit
+  ⚠️ **Warning**: This package is still in an early stage!
 An open-source python library for geospatial prototyping covering management, visualizing, and parallel processing of large amounts of geospatial data with a focus on raster and point cloud data.
 
 ## Installation
